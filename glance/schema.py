@@ -57,6 +57,44 @@ _BASE_SCHEMA_PROPERTIES = {
 }
 
 
+class ImagePropertyString(object):
+    def __init__(self, name, desc, max_length=None, required=False,
+                 default=None):
+        self.name = name
+        self.description = desc
+        if max_length is not None:
+            max_length = int(max_length)
+        self.max_length = max_length
+        self.required = required
+        self.default = default
+
+    def schema(self):
+        schema = {'type': 'string', 'description': self.description}
+        if self.max_length is not None:
+            schema['maxLength'] = self.max_length
+        if not self.required:
+            schema['optional'] = True
+        if self.default is not None:
+            schema['default'] = self.default
+        return schema
+            
+
+class ImagePropertyEnum(object):
+    def __init__(self, name, desc, options, default):
+        pass
+
+    @property
+    def jsonschema(self):
+        return {}
+
+
+class ImagePropertyBool(object):
+    def __init__(self, name, desc, options, default):
+        pass
+
+
+
+
 class API(object):
     def __init__(self, conf, base_properties=_BASE_SCHEMA_PROPERTIES):
         self.conf = conf

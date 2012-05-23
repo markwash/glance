@@ -49,6 +49,43 @@ FAKE_BASE_PROPERTIES = {
 }
 
 
+class TestImageProperties(unittest.TestCase):
+    def test(self):
+        prop = glance.schema.ImagePropertyString('foo', 'bar')
+        expected = {'type': 'string', 'description': 'bar', 'optional': True}
+        self.assertEquals(prop.schema(), expected)
+
+    def test_with_max(self):
+        prop = glance.schema.ImagePropertyString('foo', 'bar', 100)
+        expected = {
+            'type': 'string',
+            'description': 'bar', 
+            'maxLength': 100,
+            'optional': True,
+            }
+        self.assertEquals(prop.schema(), expected)
+
+    def test_with_max_not_int(self):
+        self.assertRaises(ValueError,
+                          glance.schema.ImagePropertyString, 'foo', 'bar',
+                          max_length='abc')
+
+    def test_required(self):
+        prop = glance.schema.ImagePropertyString('foo', 'bar', required=True)
+        expected = {'type': 'string', 'description': 'bar'}
+        self.assertEquals(prop.schema(), expected)
+
+    def test_default_specified(self):
+        prop = glance.schema.ImagePropertyString('foo', 'bar', default='baz')
+        expected = {
+            'type': 'string',
+            'description': 'bar', 
+            'optional': True,
+            'default': 'baz',
+            }
+        self.assertEquals(prop.schema(), expected)
+        
+
 class TestSchemaAPI(unittest.TestCase):
     def setUp(self):
         self.conf = test_utils.TestConfigOpts()
