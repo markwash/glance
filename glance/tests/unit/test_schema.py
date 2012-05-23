@@ -49,14 +49,14 @@ FAKE_BASE_PROPERTIES = {
 }
 
 
-class TestImagePropertiesString(unittest.TestCase):
+class TestString(unittest.TestCase):
     def test(self):
-        prop = glance.schema.ImagePropertyString('foo', 'bar')
+        prop = glance.schema.String('foo', 'bar')
         expected = {'type': 'string', 'description': 'bar', 'optional': True}
         self.assertEquals(prop.schema(), expected)
 
     def test_with_max(self):
-        prop = glance.schema.ImagePropertyString('foo', 'bar', 100)
+        prop = glance.schema.String('foo', 'bar', 100)
         expected = {
             'type': 'string',
             'description': 'bar', 
@@ -67,16 +67,16 @@ class TestImagePropertiesString(unittest.TestCase):
 
     def test_with_max_not_int(self):
         self.assertRaises(ValueError,
-                          glance.schema.ImagePropertyString, 'foo', 'bar',
+                          glance.schema.String, 'foo', 'bar',
                           max_length='abc')
 
     def test_required(self):
-        prop = glance.schema.ImagePropertyString('foo', 'bar', required=True)
+        prop = glance.schema.String('foo', 'bar', required=True)
         expected = {'type': 'string', 'description': 'bar'}
         self.assertEquals(prop.schema(), expected)
 
     def test_default_specified(self):
-        prop = glance.schema.ImagePropertyString('foo', 'bar', default='baz')
+        prop = glance.schema.String('foo', 'bar', default='baz')
         expected = {
             'type': 'string',
             'description': 'bar', 
@@ -86,9 +86,9 @@ class TestImagePropertiesString(unittest.TestCase):
         self.assertEquals(prop.schema(), expected)
 
 
-class TestImagePropertyEnum(unittest.TestCase):
+class TestEnum(unittest.TestCase):
      def test(self):
-        prop = glance.schema.ImagePropertyEnum('boo', 'bar', ['j', 'k', 'l'])
+        prop = glance.schema.Enum('boo', 'bar', ['j', 'k', 'l'])
         expected = {
             'type': 'enum',
             'description': 'bar', 
@@ -97,9 +97,9 @@ class TestImagePropertyEnum(unittest.TestCase):
             }
         self.assertEquals(prop.schema(), expected)
         
-class TestImagePropertyBool(unittest.TestCase):
+class TestBool(unittest.TestCase):
      def test(self):
-        prop = glance.schema.ImagePropertyBool('boo', 'bar')
+        prop = glance.schema.Bool('boo', 'bar')
         expected = {'type': 'boolean', 'description': 'bar', 'optional': True}
         self.assertEquals(prop.schema(), expected)
  

@@ -56,66 +56,59 @@ _BASE_SCHEMA_PROPERTIES = {
     },
 }
 
+class PropertyHelper(object):
+    def __init__(self, desc, required, default):
+        self.description = desc
+        self.required = required
+        self.default = default
 
-class ImagePropertyString(object):
+    def schema(self):
+        schema = {'description': self.description}
+        if not self.required:
+            schema['optional'] = True
+        if self.default is not None:
+            schema['default'] = self.default
+        return schema
+        
+
+class String(object):
     def __init__(self, name, desc, max_length=None, required=False,
                  default=None):
         self.name = name
-        self.description = desc
+        self.helper = PropertyHelper(desc, required, default)
         if max_length is not None:
             max_length = int(max_length)
         self.max_length = max_length
-        self.required = required
-        self.default = default
 
     def schema(self):
-        schema = {'type': 'string', 'description': self.description}
+        schema = self.helper.schema()
+        schema['type'] = 'string'
         if self.max_length is not None:
             schema['maxLength'] = self.max_length
-        if not self.required:
-            schema['optional'] = True
-        if self.default is not None:
-            schema['default'] = self.default
         return schema
             
 
-class ImagePropertyEnum(object):
+class Enum(object):
     def __init__(self, name, desc, options, required=False, default=None):
         self.name = name
-        self.description = desc
+        self.helper = PropertyHelper(desc, required, default)
         self.options = options
-        self.required = required
-        self.default = default
 
     def schema(self):
-        schema = {
-            'type': 'enum',
-            'description': self.description,
-            'enum': self.options,
-            }
-        if not self.required:
-            schema['optional'] = True
-        if self.default is not None:
-            schema['default'] = self.default
+        schema = self.helper.schema()
+        schema['type'] = 'enum'
+        schema['enum'] = self.options
         return schema
 
 
-class ImagePropertyBool(object):
+class Bool(object):
     def __init__(self, name, desc, required=False, default=None):
         self.name = name
-        self.description = desc
-        self.required = required
-        self.default = default
+        self.helper = PropertyHelper(desc, required, default)
 
     def schema(self):
-        schema = {
-            'type': 'boolean',
-            'description': self.description,
-            }
-        if not self.required:
-            schema['optional'] = True
-        if self.default is not None:
-            schema['default'] = self.default
+        schema = self.helper.schema()
+        schema['type'] = 'boolean'
         return schema
 
 
