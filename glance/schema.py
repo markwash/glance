@@ -80,19 +80,43 @@ class ImagePropertyString(object):
             
 
 class ImagePropertyEnum(object):
-    def __init__(self, name, desc, options, default):
-        pass
+    def __init__(self, name, desc, options, required=False, default=None):
+        self.name = name
+        self.description = desc
+        self.options = options
+        self.required = required
+        self.default = default
 
-    @property
-    def jsonschema(self):
-        return {}
+    def schema(self):
+        schema = {
+            'type': 'enum',
+            'description': self.description,
+            'enum': self.options,
+            }
+        if not self.required:
+            schema['optional'] = True
+        if self.default is not None:
+            schema['default'] = self.default
+        return schema
 
 
 class ImagePropertyBool(object):
-    def __init__(self, name, desc, options, default):
-        pass
+    def __init__(self, name, desc, required=False, default=None):
+        self.name = name
+        self.description = desc
+        self.required = required
+        self.default = default
 
-
+    def schema(self):
+        schema = {
+            'type': 'boolean',
+            'description': self.description,
+            }
+        if not self.required:
+            schema['optional'] = True
+        if self.default is not None:
+            schema['default'] = self.default
+        return schema
 
 
 class API(object):

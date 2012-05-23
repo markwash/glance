@@ -49,7 +49,7 @@ FAKE_BASE_PROPERTIES = {
 }
 
 
-class TestImageProperties(unittest.TestCase):
+class TestImagePropertiesString(unittest.TestCase):
     def test(self):
         prop = glance.schema.ImagePropertyString('foo', 'bar')
         expected = {'type': 'string', 'description': 'bar', 'optional': True}
@@ -84,8 +84,25 @@ class TestImageProperties(unittest.TestCase):
             'default': 'baz',
             }
         self.assertEquals(prop.schema(), expected)
-        
 
+
+class TestImagePropertyEnum(unittest.TestCase):
+     def test(self):
+        prop = glance.schema.ImagePropertyEnum('boo', 'bar', ['j', 'k', 'l'])
+        expected = {
+            'type': 'enum',
+            'description': 'bar', 
+            'enum' : ['j', 'k', 'l'],
+            'optional': True,
+            }
+        self.assertEquals(prop.schema(), expected)
+        
+class TestImagePropertyBool(unittest.TestCase):
+     def test(self):
+        prop = glance.schema.ImagePropertyBool('boo', 'bar')
+        expected = {'type': 'boolean', 'description': 'bar', 'optional': True}
+        self.assertEquals(prop.schema(), expected)
+ 
 class TestSchemaAPI(unittest.TestCase):
     def setUp(self):
         self.conf = test_utils.TestConfigOpts()
