@@ -56,60 +56,129 @@ _BASE_SCHEMA_PROPERTIES = {
     },
 }
 
+
 class PropertyHelper(object):
     def __init__(self, desc, required, default):
         self.description = desc
         self.required = required
         self.default = default
 
-    def schema(self):
+    def jsonschema(self):
         schema = {'description': self.description}
         if not self.required:
             schema['optional'] = True
         if self.default is not None:
             schema['default'] = self.default
         return schema
-        
 
-class String(object):
-    def __init__(self, name, desc, max_length=None, required=False,
-                 default=None):
-        self.name = name
+    @classmethod
+    def parse(self, config, name):
+        if config.has_option(name, 'required'):
+            required = config.getboolean(name, 'required')
+        else:
+            required = False
+        if config.has_option(name, 'default'):
+            default = config.get(name, 'default')
+        else:
+            default = None
+        desc = config.get(name, 'description')
+        return desc, required, default
+
+
+class StringProperty(object):
+    def __init__(self, desc, max_length=None, required=False, default=None):
         self.helper = PropertyHelper(desc, required, default)
         if max_length is not None:
             max_length = int(max_length)
         self.max_length = max_length
 
-    def schema(self):
-        schema = self.helper.schema()
+    def jsonschema(self):
+        schema = self.helper.jsonschema()
         schema['type'] = 'string'
         if self.max_length is not None:
             schema['maxLength'] = self.max_length
         return schema
-            
 
-class Enum(object):
-    def __init__(self, name, desc, options, required=False, default=None):
-        self.name = name
+    @classmethod
+    def parse(cls, config, name):
+        desc, required, default = PropertyHelper.parse(config, name)
+        if config.has_option(name, 'max_length'):
+            max_length = config.getint(name, 'max_length')
+        else:
+            max_length = None
+        return StringProperty(desc=desc, required=required, default=default,
+                      max_length=max_length)
+
+
+class EnumProperty(object):
+    def __init__(self, desc, options, required=False, default=None):
         self.helper = PropertyHelper(desc, required, default)
         self.options = options
 
-    def schema(self):
-        schema = self.helper.schema()
-        schema['type'] = 'enum'
+    def jsonschema(self):
+        schema = self.helper.jsonschema()
+        schema['type'] = 'string'
         schema['enum'] = self.options
         return schema
 
+    @classmethod
+    def parse(cls, config, name):
+        desc, required, default = PropertyHelper.parse(config, name)
+        options = config.get(name, 'options').split(',')
+        return EnumProperty(desc, options, required=required, default=default)
 
-class Bool(object):
-    def __init__(self, name, desc, required=False, default=None):
-        self.name = name
+
+class BoolProperty(object):
+    def __init__(self, desc, required=False, default=None):
         self.helper = PropertyHelper(desc, required, default)
 
-    def schema(self):
-        schema = self.helper.schema()
+    def jsonschema(self):
+        schema = self.helper.jsonschema()
         schema['type'] = 'boolean'
         return schema
+
+
+class Type(object):
+    def __init__(self, name, properties=None, additional=False):
+        self.name = name
+        if properties is None:
+            properties = {}
+        self.properties = properties
+        self.additional = additional
+
+    def jsonschema(self):
+        properties = {}
+        for name, prop in self.properties.iteritems():
+            properties[name] = prop.jsonschema()
+        if self.additional:
+            additional_props = {'type': 'string'}
+        else:
+            additional_props = False
+        return {
+            'name': self.name,
+            'properties': properties,
+            'additionalProperties': additional_props,
+        }
+
+    def parse(self, config):
+        names = config.sections()
+        self._check_property_name_conflicts(names)
+        for name in names:
+            # NOTE(markwash): only support string-backed custom properties
+            klasses = {'string': StringProperty, 'enum': EnumProperty}
+            klass = klasses[config.get(name, 'type')]
+            prop = klass.parse(config, name)
+            self.properties[name] = prop
+
+    def _check_property_name_conflicts(self, names):
+        existing_names = set(self.properties.keys())
+        new_names = set(names)
+        conflicts = new_names.intersection(existing_names)
+        if len(conflicts) > 0:
+            props = ', '.join(conflicts)
+            reason = _("custom properties (%(props)s) conflict "
+                       "with base properties")
+            raise exception.SchemaLoadError(reason=reason % {'props': props})
 
 
 class API(object):
