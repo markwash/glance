@@ -56,8 +56,7 @@ if __name__ == '__main__':
     try:
         config.parse_cache_args()
 
-        app = config.load_paste_app(CONF,
-                                    'glance-cleaner', 'glance-cache-paste.ini')
+        app = config.load_paste_app('glance-cleaner', 'glance-cache-paste.ini')
         app.run()
     except RuntimeError, e:
         sys.exit("ERROR: %s" % e)

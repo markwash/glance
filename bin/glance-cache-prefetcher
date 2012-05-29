@@ -47,7 +47,7 @@ if __name__ == '__main__':
     try:
         config.parse_cache_args()
 
-        app = config.load_paste_app(CONF, 'glance-prefetcher',
+        app = config.load_paste_app('glance-prefetcher',
                                     'glance-cache-paste.ini')
         app.run()
     except RuntimeError, e:

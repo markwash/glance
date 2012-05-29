@@ -53,10 +53,10 @@ if __name__ == '__main__':
     try:
         config.parse_args()
 
-        app = config.load_paste_app(CONF)
+        app = config.load_paste_app()
 
         server = wsgi.Server()
-        server.start(app, CONF, default_port=9292)
+        server.start(app, default_port=9292)
         server.wait()
     except exception.WorkerCreationFailure, e:
         fail(2, e)

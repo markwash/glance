@@ -24,22 +24,23 @@ import os.path
 
 from glance.common import exception
 from glance.common import utils
-
+from glance.openstack.common import cfg
 
 logger = logging.getLogger(__name__)
+
+CONF = cfg.CONF
 
 
 class Driver(object):
 
-    def __init__(self, conf):
+    def __init__(self):
         """
         Initialize the attribute driver with a set of options.
 
-        :param conf: Dictionary of configuration options
         :raises `exception.BadDriverConfiguration` if configuration of the
                 driver fails for any reason.
         """
-        self.conf = conf or {}
+        pass
 
     def configure(self):
         """
@@ -58,7 +59,7 @@ class Driver(object):
         Creates all necessary directories under the base cache directory
         """
 
-        self.base_dir = self.conf.image_cache_dir
+        self.base_dir = CONF.image_cache_dir
         if self.base_dir is None:
             msg = _('Failed to read %s from config') % 'image_cache_dir'
             logger.error(msg)
