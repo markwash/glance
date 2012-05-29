@@ -120,15 +120,15 @@ class ImagesController(base.Controller):
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
-    def __init__(self, conf, schema_api):
+    def __init__(self, conf, schemas):
         super(RequestDeserializer, self).__init__()
         self.conf = conf
-        self.schema_api = schema_api
+        self.schemas = schemas
 
-    def _parse_image(self, request):
+    def _parse_image(self, request, schema):
         output = super(RequestDeserializer, self).default(request)
         body = output.pop('body')
-        self.schema_api.validate('image', body)
+        schema.validate(body) # may raise 400 or 403
 
         # Create a dict of base image properties, with user- and deployer-
         # defined properties contained in a 'properties' dictionary
@@ -153,16 +153,18 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
                 del image[key]
 
     def create(self, request):
-        return self._parse_image(request)
+        schema = self.schemas.get_image_create_schema(request.context)
+        return self._parse_image(request, schema)
 
-    def update(self, request):
-        return self._parse_image(request)
+    def update(self, request, image_id):
+        schema = self.schemas.get_image_update_schema(request.context)
+        return self._parse_image(request, schema)
 
 
 class ResponseSerializer(wsgi.JSONResponseSerializer):
-    def __init__(self, schema_api):
+    def __init__(self, schemas):
         super(ResponseSerializer, self).__init__()
-        self.schema_api = schema_api
+        self.schemas = schemas
 
     def _get_image_href(self, image, subcollection=''):
         base_href = '/v2/images/%s' % image['id']
@@ -177,19 +179,14 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
             {'rel': 'describedby', 'href': '/v2/schemas/image'},
         ]
 
-    def _filter_allowed_image_attributes(self, image):
-        schema = self.schema_api.get_schema('image')
-        if schema.get('additionalProperties', True):
-            return dict(image.iteritems())
-        attrs = schema['properties'].keys()
-        return dict((k, v) for (k, v) in image.iteritems() if k in attrs)
-
-    def _format_image(self, image):
+    def _format_image(self, context, image):
+        schema = self.schema_api.get_image_display_schema(context)
+        
         _image = image['properties']
-        _image = self._filter_allowed_image_attributes(_image)
         for key in ['id', 'name', 'created_at', 'updated_at', 'tags']:
             _image[key] = image[key]
         _image['visibility'] = 'public' if image['is_public'] else 'private'
+        _image = schema.filter(_image)
         _image['links'] = self._get_image_links(image)
         self._serialize_datetimes(_image)
         return _image

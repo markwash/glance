@@ -19,9 +19,9 @@ import glance.schema
 
 
 class Controller(glance.api.v2.base.Controller):
-    def __init__(self, conf, schema_api):
+    def __init__(self, conf, schemas):
         super(Controller, self).__init__(conf)
-        self.schema_api = schema_api
+        self.schemas = schemas
 
     def index(self, req):
         links = [
@@ -31,10 +31,12 @@ class Controller(glance.api.v2.base.Controller):
         return {'links': links}
 
     def image(self, req):
-        return self.schema_api.get_schema('image')
+        schema = self.schemas.get_image_display_schema(req.context)
+        return str(schema)
 
     def access(self, req):
-        return self.schema_api.get_schema('access')
+        schema = self.schemas.get_image_access_display_schema(req.context)
+        return str(schema)
 
 
 def create_resource(conf, schema_api):
