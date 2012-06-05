@@ -21,7 +21,10 @@ import webob.exc
 from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
+from glance.openstack.common import cfg
 import glance.db.api
+
+SUPPORTED_PARAMS = ('limit', 'marker')
 
 
 class ImagesController(object):
@@ -78,7 +81,12 @@ class ImagesController(object):
         #NOTE(bcwaldon): is_public=True gets public images and those
         # owned by the authenticated tenant
         filters = {'deleted': False, 'is_public': True}
-        images = self.db_api.image_get_all(req.context, filters=filters)
+        params = self._get_query_params(req)
+        try:
+            images = self.db_api.image_get_all(req.context, filters=filters,
+                                               **params)
+        except exception.NotFound as e:
+            raise webob.exc.HTTPBadRequest()
         images = [self._normalize_properties(dict(image)) for image in images]
         return [self._append_tags(req.context, image) for image in images]
 
@@ -115,6 +123,47 @@ class ImagesController(object):
             self.db_api.image_destroy(req.context, image_id)
         except (exception.NotFound, exception.Forbidden):
             raise webob.exc.HTTPNotFound()
+
+    def _get_query_params(self, req):
+        """
+        Extract necessary query parameters from http request.
+
+        :param req: the Request object coming from the wsgi layer
+        :retval dictionary of filters to apply to list of images
+        """
+        params = {
+            'limit': self._get_limit(req),
+            'marker': self._get_marker(req),
+            }
+
+        for key, value in params.items():
+            if value is None:
+                del params[key]
+
+        return params
+
+    def _get_limit(self, req):
+        """Parse a limit query param into something usable."""
+        try:
+            default = self.conf.limit_param_default
+            limit = int(req.params.get('limit', default=default))
+        except ValueError:
+            raise webob.exc.HTTPBadRequest(_("limit param must be an integer"))
+
+        if limit < 0:
+            raise webob.exc.HTTPBadRequest(_("limit param must be positive"))
+
+        return min(self.conf.api_limit_max, limit)
+
+    def _get_marker(self, req):
+        """Parse a marker query param into something usable. """
+        marker = req.params.get('marker', None)
+
+        if marker and not utils.is_uuid_like(marker):
+            msg = _('Invalid marker format')
+            raise webob.exc.HTTPBadRequest(explanation=msg)
+
+        return marker
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):

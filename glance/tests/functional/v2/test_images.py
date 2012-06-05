@@ -478,3 +478,96 @@ class TestImages(functional.FunctionalTest):
         self.assertEqual(404, response.status_code)
 
         self.stop_servers()
+
+    def test_paginated_images(self):
+        """
+        Set up three images and ensure limit and marker query params work
+        """
+
+        image_ids = []
+        # 0. Check if there are no images
+        # Image list should be empty
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        self.assertEqual(0, len(images))
+
+        # 1. POST three images with various attributes
+        # Create an image (with a deployer-defined property)
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-1', 'type': 'kernel', 'bar': 'baz'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_location_header = response.headers['Location']
+        image = json.loads(response.text)['image']
+        image_ids.append(image['id'])
+
+        # Create a second image
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-2', 'type': 'kernel', 'what': 'why'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_location_header = response.headers['Location']
+        image = json.loads(response.text)['image']
+        image_ids.append(image['id'])
+
+        # Create a third image
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-3', 'type': 'kernel', 'who': 'when'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_location_header = response.headers['Location']
+        image = json.loads(response.text)['image']
+        image_ids.append(image['id'])
+
+        # 3.Image list should now have three entries
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        self.assertEqual(3, len(images))
+
+        # 4. GET /images with limit=2
+        #Verify if 2 images are returned
+        params = {'limit': '2'}
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers(), params=params)
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.text)['images']
+        self.assertEqual(2, len(data))
+        self.assertEqual(data[0]['id'], images[0]['id'])
+        self.assertEqual(data[1]['id'], images[1]['id'])
+
+        # 5. GET /images with marker
+        # Verify only two images were returned
+        params = {'marker': images[0]['id']}
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers(), params=params)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.text)['images']
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['id'], images[1]['id'])
+        self.assertEqual(data[1]['id'], images[2]['id'])
+
+        # 6. GET /images with marker and limit
+        # Verify only one image was returned with the correct id
+        params = {'limit': '1', 'marker': images[1]['id']}
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers(), params=params)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.text)['images']
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['id'], images[2]['id'])
+
+        # 6. Delete all the images
+        # Deletion should work
+        for image_id in image_ids:
+            path = self._url('/images/%s' % image_id)
+            response = requests.delete(path, headers=self._headers())
+            self.assertEqual(204, response.status_code)
+
+        self.stop_servers()

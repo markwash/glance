@@ -33,18 +33,20 @@ USER1 = '54492ba0-f4df-4e4e-be62-27f4d76b29cf'
 USER2 = '0b3b3006-cb76-4517-ae32-51397e22c754'
 
 
-class FakeRequest(wsgi.Request):
-    def __init__(self):
-        #TODO(bcwaldon): figure out how to fake this out cleanly
-        super(FakeRequest, self).__init__({'REQUEST_METHOD': 'POST'})
+def get_fake_request(path='', method='POST'):
+    req = wsgi.Request.blank(path)
+    req.method = method
 
-        kwargs = {
+    kwargs = {
             'user': USER1,
             'tenant': TENANT1,
             'roles': [],
             'is_admin': False,
         }
-        self.context = glance.common.context.RequestContext(**kwargs)
+
+    req.context = glance.common.context.RequestContext(**kwargs)
+
+    return req
 
 
 class FakeDB(object):
@@ -115,7 +117,7 @@ class FakeDB(object):
 
         return image
 
-    def image_get_all(self, context, filters=None):
+    def image_get_all(self, context, filters=None, **kwargs):
         return self.images.values()
 
     def image_member_find(self, context, image_id, tenant_id):
