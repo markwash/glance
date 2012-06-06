@@ -26,18 +26,9 @@ from webob import exc
 from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
-from glance.openstack.common import cfg
 from glance.db import api as db_api
 
 logger = logging.getLogger('glance.registry.api.v1.images')
-
-images_opts = [
-    cfg.IntOpt('limit_param_default', default=25),
-    cfg.IntOpt('api_limit_max', default=1000),
-    ]
-
-CONF = cfg.CONF
-CONF.register_opts(images_opts)
 
 DISPLAY_FIELDS_IN_INDEX = ['id', 'name', 'size',
                            'disk_format', 'container_format',

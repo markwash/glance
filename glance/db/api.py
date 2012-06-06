@@ -429,8 +429,11 @@ def image_get_all(context, filters=None, marker=None, limit=None,
 
     marker_image = None
     if marker is not None:
-        marker_image = image_get(context, marker,
-                                 force_show_deleted=showing_deleted)
+        try:
+            marker_image = image_get(context, marker,
+                                     force_show_deleted=showing_deleted)
+        except exception.NotFound as e:
+            raise exception.MarkerNotFound(marker=marker)
 
     query = paginate_query(query, models.Image, limit,
                            [sort_key, 'created_at', 'id'],

@@ -72,6 +72,10 @@ class NotFound(GlanceException):
     message = _("An object with the specified identifier was not found.")
 
 
+class MarkerNotFound(NotFound):
+    message = _("Marker %(marker)s not found.")
+
+
 class UnknownScheme(GlanceException):
     message = _("Unknown scheme '%(scheme)s' found in URI")
 

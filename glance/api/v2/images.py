@@ -21,16 +21,24 @@ import webob.exc
 from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
-from glance.openstack.common import cfg
 import glance.db.api
+from glance.openstack.common import cfg
+
+CONF = cfg.CONF
 
 SUPPORTED_PARAMS = ('limit', 'marker')
 
 
 class ImagesController(object):
-    def __init__(self, db_api=None):
+    def __init__(self, default_limit=None, max_limit=None, db_api=None):
         self.db_api = db_api or glance.db.api
         self.db_api.configure_db()
+        if default_limit is None:
+            default_limit = CONF.limit_param_default
+        self.default_limit = default_limit
+        if max_limit is None:
+            max_limit = CONF.api_limit_max
+        self.max_limit = max_limit
 
     def _normalize_properties(self, image):
         """Convert the properties from the stored format to a dict
@@ -77,16 +85,18 @@ class ImagesController(object):
 
         return self._normalize_properties(dict(image))
 
-    def index(self, req):
+    def index(self, req, marker=None, limit=None):
+        if limit is None:
+            limit = self.default_limit
+        limit = min(limit, self.max_limit)
         #NOTE(bcwaldon): is_public=True gets public images and those
         # owned by the authenticated tenant
         filters = {'deleted': False, 'is_public': True}
-        params = self._get_query_params(req)
         try:
             images = self.db_api.image_get_all(req.context, filters=filters,
-                                               **params)
-        except exception.NotFound as e:
-            raise webob.exc.HTTPBadRequest()
+                                               marker=marker, limit=limit)
+        except exception.MarkerNotFound as e:
+            raise webob.exc.HTTPBadRequest(e)
         images = [self._normalize_properties(dict(image)) for image in images]
         return [self._append_tags(req.context, image) for image in images]
 
@@ -123,47 +133,6 @@ class ImagesController(object):
             self.db_api.image_destroy(req.context, image_id)
         except (exception.NotFound, exception.Forbidden):
             raise webob.exc.HTTPNotFound()
-
-    def _get_query_params(self, req):
-        """
-        Extract necessary query parameters from http request.
-
-        :param req: the Request object coming from the wsgi layer
-        :retval dictionary of filters to apply to list of images
-        """
-        params = {
-            'limit': self._get_limit(req),
-            'marker': self._get_marker(req),
-            }
-
-        for key, value in params.items():
-            if value is None:
-                del params[key]
-
-        return params
-
-    def _get_limit(self, req):
-        """Parse a limit query param into something usable."""
-        try:
-            default = self.conf.limit_param_default
-            limit = int(req.params.get('limit', default=default))
-        except ValueError:
-            raise webob.exc.HTTPBadRequest(_("limit param must be an integer"))
-
-        if limit < 0:
-            raise webob.exc.HTTPBadRequest(_("limit param must be positive"))
-
-        return min(self.conf.api_limit_max, limit)
-
-    def _get_marker(self, req):
-        """Parse a marker query param into something usable. """
-        marker = req.params.get('marker', None)
-
-        if marker and not utils.is_uuid_like(marker):
-            msg = _('Invalid marker format')
-            raise webob.exc.HTTPBadRequest(explanation=msg)
-
-        return marker
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
@@ -203,6 +172,34 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
     def update(self, request):
         return self._parse_image(request)
+
+    def _extract_limit(self, request, params):
+        limit = request.params.get('limit')
+        if limit is None:
+            return
+        try:
+            limit = int(limit)
+        except ValueError:
+            raise webob.exc.HTTPBadRequest(
+                _("limit param must be an integer"))
+        if limit < 0:
+            raise webob.exc.HTTPBadRequest(
+                _("limit param must be positive"))
+        params['limit'] = limit
+
+    def _extract_marker(self, request, params):
+        marker = req.params.get('marker')
+        if marker is not None:
+            if not utils.is_uuid_like(marker):
+                msg = _('Invalid marker format')
+                raise webob.exc.HTTPBadRequest(explanation=msg)
+            params['marker'] = marker
+
+    def index(self, request):
+        query_params = {}
+        self._extract_limit(request, query_params)
+        self._extract_marker(request, query_params)
+        return query_params
 
 
 class ResponseSerializer(wsgi.JSONResponseSerializer):
