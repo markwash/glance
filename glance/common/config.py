@@ -38,6 +38,10 @@ common_opts = [
     cfg.BoolOpt('allow_additional_image_properties', default=True,
                 help='Whether to allow users to specify image properties '
                 'beyond what the image schema provides'),
+    cfg.IntOpt('limit_param_default', default=25,
+               help=...),
+    cfg.IntOpt('api_limit_max', default=1000,
+               help=...),
 ]
 
 CONF = cfg.CONF

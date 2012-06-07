@@ -26,9 +26,18 @@ import glance.db.api
 from glance.openstack.common import timeutils
 
 
+CONF = ...
+
+
 class ImagesController(base.Controller):
-    def __init__(self, conf, db_api=None):
+    def __init__(self, conf, db_api=None, default_limit=None, limit_max=None):
         super(ImagesController, self).__init__(conf)
+        if default_limit is None:
+            default_limit = CONF.limit_param_default
+        self.default_limit = default_limit
+        if max_limit is None:
+            max_limit = CONF.api_limit_max
+        self.max_limit = max_limit
         self.db_api = db_api or glance.db.api
         self.db_api.configure_db(conf)
 
@@ -77,7 +86,12 @@ class ImagesController(base.Controller):
 
         return self._normalize_properties(dict(image))
 
-    def index(self, req):
+    def index(self, req, marker=None, limit=None,
+              sort_key='created_at', sort_dir='desc'):
+        if limit is None:
+            limit = self.default_limit
+        limit = min(limit, self.max_limit)
+
         #NOTE(bcwaldon): is_public=True gets public images and those
         # owned by the authenticated tenant
         filters = {'deleted': False, 'is_public': True}
@@ -158,6 +172,14 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
     def update(self, request):
         return self._parse_image(request)
+
+    def index(self, request):
+        return {
+            'limit': ...,
+            'marker': ...,
+            'sort_key': ...,
+            'sort_dir': ...,
+        }
 
 
 class ResponseSerializer(wsgi.JSONResponseSerializer):
