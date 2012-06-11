@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from glance.api.v2 import schemas
+from glance.api.v2.resources import schemas
 import glance.schema
 import glance.tests.unit.utils as unit_test_utils
 import glance.tests.utils as test_utils

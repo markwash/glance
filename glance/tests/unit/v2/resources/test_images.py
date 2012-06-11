@@ -18,7 +18,7 @@ import json
 
 import webob
 
-import glance.api.v2.images
+from glance.api.v2.resources import images
 from glance.common import exception
 from glance.common import utils
 import glance.schema
@@ -35,7 +35,7 @@ class TestImagesController(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesController, self).setUp()
         self.db = unit_test_utils.FakeDB()
-        self.controller = glance.api.v2.images.ImagesController(self.db)
+        self.controller = images.ImagesController(self.db)
 
     def test_index(self):
         request = unit_test_utils.get_fake_request()
@@ -143,7 +143,7 @@ class TestImagesDeserializer(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesDeserializer, self).setUp()
         schema_api = glance.schema.API()
-        self.deserializer = glance.api.v2.images.RequestDeserializer(
+        self.deserializer = images.RequestDeserializer(
             schema_api)
 
     def test_create_with_id(self):
@@ -225,7 +225,7 @@ class TestImagesDeserializerWithExtendedSchema(test_utils.BaseTestCase):
             },
         }
         schema_api.set_custom_schema_properties('image', props)
-        self.deserializer = glance.api.v2.images.RequestDeserializer(
+        self.deserializer = images.RequestDeserializer(
             schema_api)
 
     def test_create(self):
@@ -271,7 +271,7 @@ class TestImagesDeserializerWithAdditionalProperties(test_utils.BaseTestCase):
         super(TestImagesDeserializerWithAdditionalProperties, self).setUp()
         self.config(allow_additional_image_properties=True)
         schema_api = glance.schema.API()
-        self.deserializer = glance.api.v2.images.RequestDeserializer(
+        self.deserializer = images.RequestDeserializer(
             schema_api)
 
     def test_create(self):
@@ -320,7 +320,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesSerializer, self).setUp()
         schema_api = glance.schema.API()
-        self.serializer = glance.api.v2.images.ResponseSerializer(schema_api)
+        self.serializer = images.ResponseSerializer(schema_api)
 
     def test_index(self):
         fixtures = [
@@ -516,7 +516,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
         }
 
     def test_show(self):
-        serializer = glance.api.v2.images.ResponseSerializer(self.schema_api)
+        serializer = images.ResponseSerializer(self.schema_api)
         expected = {
             'image': {
                 'id': unit_test_utils.UUID2,
@@ -544,7 +544,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
         self.assertEqual(expected, json.loads(response.body))
 
     def test_show_reports_invalid_data(self):
-        serializer = glance.api.v2.images.ResponseSerializer(self.schema_api)
+        serializer = images.ResponseSerializer(self.schema_api)
         self.fixture['properties']['color'] = 'invalid'
         expected = {
             'image': {
@@ -592,7 +592,7 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
         }
 
     def test_show(self):
-        serializer = glance.api.v2.images.ResponseSerializer(self.schema_api)
+        serializer = images.ResponseSerializer(self.schema_api)
         expected = {
             'image': {
                 'id': unit_test_utils.UUID2,
@@ -623,7 +623,7 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
         """Ensure that the serializer passes through invalid additional
         properties (i.e. non-string) without complaining.
         """
-        serializer = glance.api.v2.images.ResponseSerializer(self.schema_api)
+        serializer = images.ResponseSerializer(self.schema_api)
         self.fixture['properties']['marx'] = 123
         expected = {
             'image': {
@@ -653,7 +653,7 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
 
     def test_show_with_additional_properties_disabled(self):
         self.config(allow_additional_image_properties=False)
-        serializer = glance.api.v2.images.ResponseSerializer(self.schema_api)
+        serializer = images.ResponseSerializer(self.schema_api)
         expected = {
             'image': {
                 'id': unit_test_utils.UUID2,

@@ -17,7 +17,7 @@ import json
 
 import webob
 
-from glance.api.v2 import image_access
+from glance.api.v2.resources import image_access
 from glance.common import exception
 from glance.common import utils
 import glance.schema

@@ -19,12 +19,12 @@ import logging
 
 import routes
 
-from glance.api.v2 import image_access
-from glance.api.v2 import image_data
-from glance.api.v2 import image_tags
-from glance.api.v2 import images
-from glance.api.v2 import root
-from glance.api.v2 import schemas
+from glance.api.v2.resources import image_access
+from glance.api.v2.resources import image_data
+from glance.api.v2.resources import image_tags
+from glance.api.v2.resources import images
+from glance.api.v2.resources import root
+from glance.api.v2.resources import schemas
 from glance.common import wsgi
 import glance.schema
 
