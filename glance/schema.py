@@ -23,6 +23,47 @@ from glance.common import exception
 from glance.openstack.common import cfg
 
 logger = logging.getLogger(__name__)
+    
+
+class Schema(object):
+
+    def __init__(self, name, properties=None, additional_properties=False):
+        self.name = name
+        if properties is None:
+            properties = {}
+        self.properties = properties
+        self.additional_properties = additional_properties
+        self._jsonschema = None
+
+    def validate(self, obj):
+        try:
+            jsonschema.validate(obj, self.jsonschema)
+        except jsonschema.ValidationError as e:
+            raise exception.InvalidObject(schema=self.name, reason=str(e))
+
+    def filter(self, obj):
+        if self.additional_properties:
+            return obj
+        filtered = {}
+        for key, value in obj.iteritems():
+            if key in self.properties:
+                filtered[key] = value
+        return filtered
+
+    @property
+    def jsonschema(self):
+        if self._jsonschema is None:
+            if self.additional_properties:
+                additional_properties = {'type': 'string'}
+            else:
+                additional_properties = False
+            self._jsonschema = {
+                'name': self.name,
+                'properties': self.properties,
+                'additionalProperties': additional_properties,
+            }
+        return self._jsonschema
+
 
 CONF = cfg.CONF
 

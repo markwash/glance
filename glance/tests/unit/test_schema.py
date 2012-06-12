@@ -18,6 +18,82 @@ import glance.schema
 from glance.tests import utils as test_utils
 
 
+class TestBasicSchema(test_utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestBasicSchema, self).setUp()
+        properties = {
+            'ham': {'type': 'string'},
+            'eggs': {'type': 'string'},
+        }
+        self.schema = glance.schema.Schema('basic', properties)
+
+    def test_validate_passes(self):
+        obj = {'ham': 'no', 'eggs': 'scrambled'}
+        self.schema.validate(obj) # No exception raised
+
+    def test_validate_fails_on_extra_properties(self):
+        obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
+        self.assertRaises(exception.InvalidObject, self.schema.validate, obj)
+
+    def test_validate_fails_on_bad_type(self):
+        obj = {'eggs': 2}
+        self.assertRaises(exception.InvalidObject, self.schema.validate, obj)
+
+    def test_filter_strips_extra_properties(self):
+        obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
+        filtered = self.schema.filter(obj)
+        expected = {'ham': 'virginia', 'eggs': 'scrambled'}
+        self.assertEqual(filtered, expected)
+
+    def test_raw_json_schema(self):
+        expected = {
+            'name': 'basic',
+            'properties': {
+                'ham': {'type': 'string'},
+                'eggs': {'type': 'string'},
+            },
+            'additionalProperties': False,
+        }
+        self.assertEqual(self.schema.jsonschema, expected)
+
+
+class TestPermissiveSchema(test_utils.BaseTestCase):
+
+    def setUp(self):
+        super(TestPermissiveSchema, self).setUp()
+        properties = {
+            'ham': {'type': 'string'},
+            'eggs': {'type': 'string'},
+        }
+        self.schema = glance.schema.Schema('permissive', properties,
+                                           additional_properties=True)
+
+    def test_validate_with_additional_properties_allowed(self):
+        obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
+        self.schema.validate(obj) # No exception raised
+
+    def test_validate_rejects_non_string_extra_properties(self):
+        obj = {'ham': 'virginia', 'eggs': 'scrambled', 'grits': 1000}
+        self.assertRaises(exception.InvalidObject, self.schema.validate, obj)
+
+    def test_filter_passes_extra_properties(self):
+        obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
+        filtered = self.schema.filter(obj)
+        self.assertEqual(filtered, obj)
+
+    def test_raw_json_schema(self):
+        expected = {
+            'name': 'permissive',
+            'properties': {
+                'ham': {'type': 'string'},
+                'eggs': {'type': 'string'},
+            },
+            'additionalProperties': {'type': 'string'},
+        }
+        self.assertEqual(self.schema.jsonschema, expected)
+        
+
 FAKE_BASE_PROPERTIES = {
     'fake1': {
         'id': {

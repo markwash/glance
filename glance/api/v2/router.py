@@ -102,7 +102,7 @@ class API(wsgi.Router):
                        action='delete',
                        conditions={'method': ['DELETE']})
 
-        image_access_resource = image_access.create_resource(schema_api)
+        image_access_resource = image_access.create_resource()
         mapper.connect('/images/{image_id}/access',
                        controller=image_access_resource,
                        action='index',

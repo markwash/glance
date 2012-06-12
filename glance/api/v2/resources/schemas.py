@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from glance.api.v2 import schemas
 from glance.common import wsgi
 import glance.schema
 
@@ -20,6 +21,7 @@ import glance.schema
 class Controller(object):
     def __init__(self, schema_api):
         self.schema_api = schema_api
+        self.access_schema = schemas.image_access.get_access_schema()
 
     def index(self, req):
         links = [
@@ -32,7 +34,7 @@ class Controller(object):
         return self.schema_api.get_schema('image')
 
     def access(self, req):
-        return self.schema_api.get_schema('access')
+        return self.access_schema.jsonschema
 
 
 def create_resource(schema_api):
