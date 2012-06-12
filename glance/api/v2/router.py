@@ -42,7 +42,7 @@ class API(wsgi.Router):
         root_resource = root.create_resource()
         mapper.connect('/', controller=root_resource, action='index')
 
-        schemas_resource = schemas.create_resource(schema_api)
+        schemas_resource = schemas.create_resource()
         mapper.connect('/schemas',
                        controller=schemas_resource,
                        action='index',

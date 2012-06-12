@@ -50,19 +50,32 @@ class Schema(object):
                 filtered[key] = value
         return filtered
 
+    def merge_properties(self, properties):
+        # Ensure custom props aren't attempting to override base props
+        original_keys = set(self.properties.keys())
+        new_keys = set(properties.keys())
+        intersecting_keys = original_keys.intersection(new_keys)
+        conflicting_keys = [k for k in intersecting_keys
+                            if self.properties[k] != properties[k]]
+        if len(conflicting_keys) > 0:
+            props = ', '.join(conflicting_keys)
+            reason = _("custom properties (%(props)s) conflict "
+                       "with base properties")
+            raise exception.SchemaLoadError(reason=reason % {'props': props})
+
+        self.properties.update(properties)
+
     @property
     def jsonschema(self):
-        if self._jsonschema is None:
-            if self.additional_properties:
-                additional_properties = {'type': 'string'}
-            else:
-                additional_properties = False
-            self._jsonschema = {
-                'name': self.name,
-                'properties': self.properties,
-                'additionalProperties': additional_properties,
-            }
-        return self._jsonschema
+        if self.additional_properties:
+            additional_properties = {'type': 'string'}
+        else:
+            additional_properties = False
+        return {
+            'name': self.name,
+            'properties': self.properties,
+            'additionalProperties': additional_properties,
+        }
 
 
 CONF = cfg.CONF

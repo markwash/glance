@@ -46,6 +46,24 @@ class TestBasicSchema(test_utils.BaseTestCase):
         expected = {'ham': 'virginia', 'eggs': 'scrambled'}
         self.assertEqual(filtered, expected)
 
+    def test_merge_properties(self):
+        self.schema.merge_properties({'bacon': {'type': 'string'}})
+        expected = set(['ham', 'eggs', 'bacon'])
+        actual = set(self.schema.jsonschema['properties'].keys())
+        self.assertEqual(actual, expected)
+
+    def test_merge_conflicting_properties(self):
+        conflicts = {'eggs': {'type': 'integer'}}
+        self.assertRaises(exception.SchemaLoadError,
+                          self.schema.merge_properties, conflicts)
+
+    def test_merge_conflicting_but_identical_properties(self):
+        conflicts = {'ham': {'type': 'string'}}
+        self.schema.merge_properties(conflicts) # no exception raised
+        expected = set(['ham', 'eggs'])
+        actual = set(self.schema.jsonschema['properties'].keys())
+        self.assertEqual(actual, expected)
+
     def test_raw_json_schema(self):
         expected = {
             'name': 'basic',
