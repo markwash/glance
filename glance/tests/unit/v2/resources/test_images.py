@@ -216,6 +216,7 @@ class TestImagesDeserializerWithExtendedSchema(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesDeserializerWithExtendedSchema, self).setUp()
         self.config(allow_additional_image_properties=False)
+
         def fake_load():
             return {
                 'pants': {
@@ -224,7 +225,7 @@ class TestImagesDeserializerWithExtendedSchema(test_utils.BaseTestCase):
                   'enum': ['on', 'off'],
                 },
             }
-        
+
         self.stubs = stubout.StubOutForTesting()
         self.stubs.Set(glance.api.v2.schemas.image,
                        'load_custom_properties', fake_load)
@@ -506,6 +507,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesSerializerWithExtendedSchema, self).setUp()
         self.config(allow_additional_image_properties=False)
+
         def fake_load():
             return {
                 'color': {
@@ -514,7 +516,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
                     'enum': ['red', 'green'],
                 },
             }
-        
+
         self.stubs = stubout.StubOutForTesting()
         self.stubs.Set(glance.api.v2.schemas.image,
                        'load_custom_properties', fake_load)

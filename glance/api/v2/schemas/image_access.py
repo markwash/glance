@@ -15,6 +15,7 @@
 
 import glance.schema
 
+
 def get_access_schema():
     properties = {
         'tenant_id': {

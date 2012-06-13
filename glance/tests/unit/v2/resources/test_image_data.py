@@ -17,7 +17,7 @@ import StringIO
 
 import webob
 
-from  glance.api.v2.resources import image_data
+from glance.api.v2.resources import image_data
 from glance.common import utils
 import glance.tests.unit.utils as unit_test_utils
 from glance.tests.unit import base

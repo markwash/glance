@@ -30,7 +30,7 @@ class TestBasicSchema(test_utils.BaseTestCase):
 
     def test_validate_passes(self):
         obj = {'ham': 'no', 'eggs': 'scrambled'}
-        self.schema.validate(obj) # No exception raised
+        self.schema.validate(obj)  # No exception raised
 
     def test_validate_fails_on_extra_properties(self):
         obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
@@ -59,7 +59,7 @@ class TestBasicSchema(test_utils.BaseTestCase):
 
     def test_merge_conflicting_but_identical_properties(self):
         conflicts = {'ham': {'type': 'string'}}
-        self.schema.merge_properties(conflicts) # no exception raised
+        self.schema.merge_properties(conflicts)  # no exception raised
         expected = set(['ham', 'eggs'])
         actual = set(self.schema.jsonschema['properties'].keys())
         self.assertEqual(actual, expected)
@@ -89,7 +89,7 @@ class TestPermissiveSchema(test_utils.BaseTestCase):
 
     def test_validate_with_additional_properties_allowed(self):
         obj = {'ham': 'virginia', 'eggs': 'scrambled', 'bacon': 'crispy'}
-        self.schema.validate(obj) # No exception raised
+        self.schema.validate(obj)  # No exception raised
 
     def test_validate_rejects_non_string_extra_properties(self):
         obj = {'ham': 'virginia', 'eggs': 'scrambled', 'grits': 1000}
