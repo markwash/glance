@@ -213,7 +213,7 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         response.status_int = 204
 
 
-def create_resource(schema_api):
+def create_resource():
     """Images resource factory method"""
     deserializer = RequestDeserializer()
     serializer = ResponseSerializer()
