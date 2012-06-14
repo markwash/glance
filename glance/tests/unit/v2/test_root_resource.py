@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import glance.api.v2.root
+from glance.api.v2 import root
 import glance.tests.unit.utils as unit_test_utils
 import glance.tests.utils as test_utils
 
@@ -22,7 +22,7 @@ class TestRootController(test_utils.BaseTestCase):
 
     def setUp(self):
         super(TestRootController, self).setUp()
-        self.controller = glance.api.v2.root.RootController()
+        self.controller = root.RootController()
 
     def test_index(self):
         req = unit_test_utils.get_fake_request()

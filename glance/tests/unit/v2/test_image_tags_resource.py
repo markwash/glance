@@ -17,7 +17,7 @@ import json
 
 import webob
 
-import glance.api.v2.image_tags
+from glance.api.v2 import image_tags
 import glance.tests.unit.utils as unit_test_utils
 import glance.tests.utils as test_utils
 
@@ -27,7 +27,7 @@ class TestImageTagsController(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImageTagsController, self).setUp()
         self.db = unit_test_utils.FakeDB()
-        self.controller = glance.api.v2.image_tags.Controller(self.db)
+        self.controller = image_tags.Controller(self.db)
 
     def test_list_tags(self):
         request = unit_test_utils.get_fake_request()
@@ -53,7 +53,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
 
     def setUp(self):
         super(TestImagesSerializer, self).setUp()
-        self.serializer = glance.api.v2.image_tags.ResponseSerializer()
+        self.serializer = image_tags.ResponseSerializer()
 
     def test_list_tags(self):
         fixtures = ['ping', 'pong']

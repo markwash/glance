@@ -14,7 +14,6 @@
 #    under the License.
 
 from glance.api.v2 import schemas
-import glance.schema
 import glance.tests.unit.utils as unit_test_utils
 import glance.tests.utils as test_utils
 
@@ -23,8 +22,7 @@ class TestSchemasController(test_utils.BaseTestCase):
 
     def setUp(self):
         super(TestSchemasController, self).setUp()
-        self.schema_api = glance.schema.API()
-        self.controller = schemas.Controller(self.schema_api)
+        self.controller = schemas.Controller()
 
     def test_index(self):
         req = unit_test_utils.get_fake_request()
@@ -38,9 +36,9 @@ class TestSchemasController(test_utils.BaseTestCase):
     def test_image(self):
         req = unit_test_utils.get_fake_request()
         output = self.controller.image(req)
-        self.assertEqual(self.schema_api.get_schema('image'), output)
+        self.assertEqual(output['name'], 'image')
 
     def test_access(self):
         req = unit_test_utils.get_fake_request()
         output = self.controller.access(req)
-        self.assertEqual(self.schema_api.get_schema('access'), output)
+        self.assertEqual(output['name'], 'access')
