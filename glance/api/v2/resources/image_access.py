@@ -17,6 +17,7 @@ import json
 
 import webob.exc
 
+import glance.api.v2.schemas.image_access as schemas
 from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
@@ -76,14 +77,14 @@ class Controller(object):
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
-    def __init__(self, schema_api):
+    def __init__(self):
         super(RequestDeserializer, self).__init__()
-        self.schema_api = schema_api
+        self.schema = schemas.get_schema()
 
     def create(self, request):
         output = super(RequestDeserializer, self).default(request)
         body = output.pop('body')
-        self.schema_api.validate('access', body)
+        self.schema.validate(body)
         body['member'] = body.pop('tenant_id')
         output['access_record'] = body
         return output
@@ -135,9 +136,9 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         response.status_int = 204
 
 
-def create_resource(schema_api):
+def create_resource():
     """Image access resource factory method"""
-    deserializer = RequestDeserializer(schema_api)
+    deserializer = RequestDeserializer()
     serializer = ResponseSerializer()
     controller = Controller()
     return wsgi.Resource(controller, deserializer, serializer)

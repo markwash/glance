@@ -17,7 +17,7 @@ import StringIO
 
 import webob
 
-import glance.api.v2.image_data
+from glance.api.v2.resources import image_data
 from glance.common import utils
 import glance.tests.unit.utils as unit_test_utils
 from glance.tests.unit import base
@@ -30,8 +30,7 @@ class TestImagesController(base.StoreClearingUnitTest):
 
         self.config(verbose=True, debug=True)
 
-        controller_class = glance.api.v2.image_data.ImageDataController
-        self.controller = controller_class(
+        self.controller = image_data.ImageDataController(
                 db_api=unit_test_utils.FakeDB(),
                 store_api=unit_test_utils.FakeStoreAPI())
 
@@ -80,7 +79,7 @@ class TestImageDataDeserializer(test_utils.BaseTestCase):
 
     def setUp(self):
         super(TestImageDataDeserializer, self).setUp()
-        self.deserializer = glance.api.v2.image_data.RequestDeserializer()
+        self.deserializer = image_data.RequestDeserializer()
 
     def test_upload(self):
         request = unit_test_utils.get_fake_request()
@@ -144,7 +143,7 @@ class TestImageDataSerializer(test_utils.BaseTestCase):
 
     def setUp(self):
         super(TestImageDataSerializer, self).setUp()
-        self.serializer = glance.api.v2.image_data.ResponseSerializer()
+        self.serializer = image_data.ResponseSerializer()
 
     def test_download(self):
         response = webob.Response()

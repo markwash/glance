@@ -18,6 +18,7 @@ import json
 
 import webob.exc
 
+import glance.api.v2.schemas.image as schemas
 from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
@@ -136,14 +137,14 @@ class ImagesController(object):
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
-    def __init__(self, schema_api):
+    def __init__(self):
         super(RequestDeserializer, self).__init__()
-        self.schema_api = schema_api
+        self.schema = schemas.get_schema()
 
     def _parse_image(self, request):
         output = super(RequestDeserializer, self).default(request)
         body = output.pop('body')
-        self.schema_api.validate('image', body)
+        self.schema.validate(body)
 
         # Create a dict of base image properties, with user- and deployer-
         # defined properties contained in a 'properties' dictionary
@@ -212,9 +213,9 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
 
 class ResponseSerializer(wsgi.JSONResponseSerializer):
-    def __init__(self, schema_api):
+    def __init__(self):
         super(ResponseSerializer, self).__init__()
-        self.schema_api = schema_api
+        self.schema = schemas.get_schema()
 
     def _get_image_href(self, image, subcollection=''):
         base_href = '/v2/images/%s' % image['id']
@@ -229,19 +230,12 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
             {'rel': 'describedby', 'href': '/v2/schemas/image'},
         ]
 
-    def _filter_allowed_image_attributes(self, image):
-        schema = self.schema_api.get_schema('image')
-        if schema.get('additionalProperties', True):
-            return dict(image.iteritems())
-        attrs = schema['properties'].keys()
-        return dict((k, v) for (k, v) in image.iteritems() if k in attrs)
-
     def _format_image(self, image):
         _image = image['properties']
-        _image = self._filter_allowed_image_attributes(_image)
         for key in ['id', 'name', 'created_at', 'updated_at', 'tags']:
             _image[key] = image[key]
         _image['visibility'] = 'public' if image['is_public'] else 'private'
+        _image = self.schema.filter(_image)
         _image['links'] = self._get_image_links(image)
         self._serialize_datetimes(_image)
         return _image
@@ -273,9 +267,9 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         response.status_int = 204
 
 
-def create_resource(schema_api):
+def create_resource():
     """Images resource factory method"""
-    deserializer = RequestDeserializer(schema_api)
-    serializer = ResponseSerializer(schema_api)
+    deserializer = RequestDeserializer()
+    serializer = ResponseSerializer()
     controller = ImagesController()
     return wsgi.Resource(controller, deserializer, serializer)

@@ -19,14 +19,13 @@ import logging
 
 import routes
 
-from glance.api.v2 import image_access
-from glance.api.v2 import image_data
-from glance.api.v2 import image_tags
-from glance.api.v2 import images
-from glance.api.v2 import root
-from glance.api.v2 import schemas
+from glance.api.v2.resources import image_access
+from glance.api.v2.resources import image_data
+from glance.api.v2.resources import image_tags
+from glance.api.v2.resources import images
+from glance.api.v2.resources import root
+from glance.api.v2.resources import schemas
 from glance.common import wsgi
-import glance.schema
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +35,10 @@ class API(wsgi.Router):
     """WSGI router for Glance v2 API requests."""
 
     def __init__(self, mapper):
-        schema_api = glance.schema.API()
-        glance.schema.load_custom_schema_properties(schema_api)
-
         root_resource = root.create_resource()
         mapper.connect('/', controller=root_resource, action='index')
 
-        schemas_resource = schemas.create_resource(schema_api)
+        schemas_resource = schemas.create_resource()
         mapper.connect('/schemas',
                        controller=schemas_resource,
                        action='index',
@@ -56,7 +52,7 @@ class API(wsgi.Router):
                        action='access',
                        conditions={'method': ['GET']})
 
-        images_resource = images.create_resource(schema_api)
+        images_resource = images.create_resource()
         mapper.connect('/images',
                        controller=images_resource,
                        action='index',
@@ -102,7 +98,7 @@ class API(wsgi.Router):
                        action='delete',
                        conditions={'method': ['DELETE']})
 
-        image_access_resource = image_access.create_resource(schema_api)
+        image_access_resource = image_access.create_resource()
         mapper.connect('/images/{image_id}/access',
                        controller=image_access_resource,
                        action='index',
