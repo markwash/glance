@@ -236,7 +236,10 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
             _image[key] = image[key]
         _image['visibility'] = 'public' if image['is_public'] else 'private'
         _image = self.schema.filter(_image)
-        _image['links'] = self._get_image_links(image)
+        _image['self'] = self._get_image_href(image)
+        _image['file'] = self._get_image_href(image, 'file')
+        _image['access'] = self._get_image_href(image, 'access')
+        _image['schema'] = '/v2/schemas/image'
         self._serialize_datetimes(_image)
         return _image
 
@@ -259,7 +262,6 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
     def index(self, response, images):
         body = {
             'images': [self._format_image(i) for i in images],
-            'links': [],
         }
         response.body = json.dumps(body)
 

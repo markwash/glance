@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import copy
 import json
 import logging
 
@@ -61,18 +60,35 @@ _BASE_PROPERTIES = {
             'maxLength': 255,
         },
     },
+    'self': {'type': 'string'},
+    'access': {'type': 'string'},
+    'file': {'type': 'string'},
+    'schema': {'type': 'string'},
 }
+
+_BASE_LINKS = [
+    {'rel': 'self', 'href': '{self}'},
+    {'rel': 'related', 'href': '{access}'},
+    {'rel': 'enclosure', 'href': '{file}'},
+    {'rel': 'describedby', 'href': '{schema}'},
+]
 
 
 def get_schema():
-    properties = copy.deepcopy(_BASE_PROPERTIES)
+    properties = dict(_BASE_PROPERTIES)
+    links = list(_BASE_LINKS)
     if CONF.allow_additional_image_properties:
-        schema = glance.schema.PermissiveSchema('image', properties)
+        schema = glance.schema.PermissiveSchema('image', properties, links)
     else:
-        schema = glance.schema.Schema('image', properties)
+        schema = glance.schema.Schema('image', properties, links)
     custom_properties = load_custom_properties()
     schema.merge_properties(custom_properties)
     return schema
+
+
+def get_collection_schema():
+    image_schema = get_schema()
+    return glance.schema.CollectionSchema('images', image_schema)
 
 
 def load_custom_properties():
