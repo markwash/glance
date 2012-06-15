@@ -535,19 +535,10 @@ class TestImagesSerializer(test_utils.BaseTestCase):
                     'created_at': ISOTIME,
                     'updated_at': ISOTIME,
                     'tags': ['one', 'two'],
-                    'links': [
-                        {
-                            'rel': 'self',
-                            'href':
-                                '/v2/images/%s' % unit_test_utils.UUID1,
-                        },
-                        {
-                            'rel': 'file',
-                            'href':
-                                '/v2/images/%s/file' % unit_test_utils.UUID1,
-                        },
-                        {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                    ],
+                    'self': '/v2/images/%s' % unit_test_utils.UUID1,
+                    'file': '/v2/images/%s/file' % unit_test_utils.UUID1,
+                    'access': '/v2/images/%s/access' % unit_test_utils.UUID1,
+                    'schema': '/v2/schemas/image',
                 },
                 {
                     'id': unit_test_utils.UUID2,
@@ -556,22 +547,14 @@ class TestImagesSerializer(test_utils.BaseTestCase):
                     'created_at': ISOTIME,
                     'updated_at': ISOTIME,
                     'tags': [],
-                    'links': [
-                        {
-                            'rel': 'self',
-                            'href':
-                                '/v2/images/%s' % unit_test_utils.UUID2,
-                        },
-                        {
-                            'rel': 'file',
-                            'href':
-                                '/v2/images/%s/file' % unit_test_utils.UUID2,
-                        },
-                        {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                    ],
+                    'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                    'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                    'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                    'schema': '/v2/schemas/image',
                 },
             ],
-            'links': [],
+            'first': '',
+            'next': '',
         }
         response = webob.Response()
         self.serializer.index(response, fixtures)
@@ -595,17 +578,10 @@ class TestImagesSerializer(test_utils.BaseTestCase):
                 'created_at': ISOTIME,
                 'updated_at': ISOTIME,
                 'tags': ['three', 'four'],
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -631,11 +607,10 @@ class TestImagesSerializer(test_utils.BaseTestCase):
                 'created_at': ISOTIME,
                 'updated_at': ISOTIME,
                 'tags': [],
-                'links': [
-                    {'rel': 'self', 'href': self_link},
-                    {'rel': 'file', 'href': '%s/file' % self_link},
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': self_link,
+                'file': '%s/file' % self_link,
+                'access': '%s/access' % self_link,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -662,11 +637,10 @@ class TestImagesSerializer(test_utils.BaseTestCase):
                 'created_at': ISOTIME,
                 'updated_at': ISOTIME,
                 'tags': ['five'],
-                'links': [
-                    {'rel': 'self', 'href': self_link},
-                    {'rel': 'file', 'href': '%s/file' % self_link},
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': self_link,
+                'file': '%s/file' % self_link,
+                'access': '%s/access' % self_link,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -717,17 +691,10 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
                 'updated_at': ISOTIME,
                 'tags': [],
                 'color': 'green',
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -745,17 +712,10 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
                 'updated_at': ISOTIME,
                 'tags': [],
                 'color': 'invalid',
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -791,17 +751,10 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
                 'updated_at': ISOTIME,
                 'marx': 'groucho',
                 'tags': [],
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -823,17 +776,10 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
                 'updated_at': ISOTIME,
                 'marx': 123,
                 'tags': [],
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()
@@ -851,17 +797,10 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
                 'created_at': ISOTIME,
                 'updated_at': ISOTIME,
                 'tags': [],
-                'links': [
-                    {
-                        'rel': 'self',
-                        'href': '/v2/images/%s' % unit_test_utils.UUID2,
-                    },
-                    {
-                        'rel': 'file',
-                        'href': '/v2/images/%s/file' % unit_test_utils.UUID2,
-                    },
-                    {'rel': 'describedby', 'href': '/v2/schemas/image'}
-                ],
+                'self': '/v2/images/%s' % unit_test_utils.UUID2,
+                'file': '/v2/images/%s/file' % unit_test_utils.UUID2,
+                'access': '/v2/images/%s/access' % unit_test_utils.UUID2,
+                'schema': '/v2/schemas/image',
             },
         }
         response = webob.Response()

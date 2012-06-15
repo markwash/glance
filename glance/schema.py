@@ -81,7 +81,8 @@ class PermissiveSchema(Schema):
 class CollectionSchema(object):
 
     def __init__(self, name, item_schema):
-        pass
+        self.name = name
+        self.item_schema = item_schema
 
     def raw(self):
         return {
@@ -89,15 +90,15 @@ class CollectionSchema(object):
             'properties': {
                 self.name: {
                     'type': 'array',
-                    'items': item_schema.raw(),
+                    'items': self.item_schema.raw(),
                 },
                 'first': {'type': 'string'},
                 'next': {'type': 'string'},
                 'schema': {'type': 'string'},
+            },
             'links': [
                 {'rel': 'first', 'href': '{first}'},
                 {'rel': 'next', 'href': '{next}'},
                 {'rel': 'describedby', 'href': '{schema}'},
             ],
-            },
         }

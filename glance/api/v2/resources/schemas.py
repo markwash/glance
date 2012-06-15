@@ -23,7 +23,7 @@ class Controller(object):
     def __init__(self):
         self.access_schema = image_access.get_schema()
         self.image_schema = image.get_schema()
-        self.images_schema = image.get_collection_schema()
+        self.image_collection_schema = image.get_collection_schema()
 
     def index(self, req):
         return {

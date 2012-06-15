@@ -262,6 +262,8 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
     def index(self, response, images):
         body = {
             'images': [self._format_image(i) for i in images],
+            'first': '',
+            'next': '',
         }
         response.body = json.dumps(body)
 
