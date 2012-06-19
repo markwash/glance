@@ -88,6 +88,7 @@ class ImagesController(object):
         #NOTE(bcwaldon): is_public=True gets public images and those
         # owned by the authenticated tenant
         filters = {'deleted': False, 'is_public': True}
+        result = {}
         if limit is None:
             limit = CONF.limit_param_default
         limit = min(CONF.api_limit_max, limit)
@@ -97,12 +98,16 @@ class ImagesController(object):
                                                marker=marker, limit=limit,
                                                sort_key=sort_key,
                                                sort_dir=sort_dir)
+            if len(images) != 0 and len(images) == limit:
+                result['next_marker'] = images[-1]['id']
         except exception.InvalidSortKey as e:
             raise webob.exc.HTTPBadRequest(explanation=unicode(e))
         except exception.NotFound as e:
             raise webob.exc.HTTPBadRequest(explanation=unicode(e))
         images = [self._normalize_properties(dict(image)) for image in images]
-        return [self._append_tags(req.context, image) for image in images]
+        result['images'] = [self._append_tags(req.context, image)
+                                for image in images]
+        return result
 
     def show(self, req, image_id):
         try:
@@ -211,7 +216,6 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
         if limit is not None:
             query_params['limit'] = self._validate_limit(limit)
-
         return query_params
 
 
@@ -239,7 +243,10 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
             _image[key] = image[key]
         _image['visibility'] = 'public' if image['is_public'] else 'private'
         _image = self.schema.filter(_image)
-        _image['links'] = self._get_image_links(image)
+        _image['self'] = self._get_image_href(image)
+        _image['file'] = self._get_image_href(image, 'file')
+        _image['access'] = self._get_image_href(image, 'access')
+        _image['schema'] = '/v2/schemas/image'
         self._serialize_datetimes(_image)
         return _image
 
@@ -259,11 +266,20 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
     def update(self, response, image):
         response.body = json.dumps({'image': self._format_image(image)})
 
-    def index(self, response, images):
-        body = {
-            'images': [self._format_image(i) for i in images],
-            'links': [],
+    def index(self, response, result):
+        params = dict(response.request.params)
+        params.pop('marker', None)
+        query = '&'.join(['%s=%s' % (k, v) for k, v in params.iteritems()])
+        body = {'images': [self._format_image(i) for i in result['images']],
+               'first': '/v2/images',
         }
+        if len(query) > 0 and 'next_marker' in result:
+            body['first'] = '%s?%s' % (body['first'], query)
+            body['next'] = '%s&marker=%s' % (body['first'],
+                                             result['next_marker'])
+        elif len(query) == 0 and 'next_marker' in result:
+            body['next'] = '%s?marker=%s' % (body['first'],
+                                             result['next_marker'])
         response.body = json.dumps(body)
 
     def delete(self, response, result):
@@ -306,18 +322,35 @@ _BASE_PROPERTIES = {
             'maxLength': 255,
         },
     },
+    'self': {'type': 'string'},
+    'access': {'type': 'string'},
+    'file': {'type': 'string'},
+    'schema': {'type': 'string'},
 }
+
+_BASE_LINKS = [
+    {'rel': 'self', 'href': '{self}'},
+    {'rel': 'related', 'href': '{access}'},
+    {'rel': 'enclosure', 'href': '{file}'},
+    {'rel': 'describedby', 'href': '{schema}'},
+]
 
 
 def get_schema():
     properties = dict(_BASE_PROPERTIES)
+    links = list(_BASE_LINKS)
     if CONF.allow_additional_image_properties:
-        schema = glance.schema.PermissiveSchema('image', properties)
+        schema = glance.schema.PermissiveSchema('image', properties, links)
     else:
-        schema = glance.schema.Schema('image', properties)
+        schema = glance.schema.Schema('image', properties, links)
     custom_properties = load_custom_properties()
     schema.merge_properties(custom_properties)
     return schema
+
+
+def get_collection_schema():
+    image_schema = get_schema()
+    return glance.schema.CollectionSchema('images', image_schema)
 
 
 def load_custom_properties():

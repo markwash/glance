@@ -655,3 +655,123 @@ class TestImages(functional.FunctionalTest):
         path = self._url('/images?sort_dir=foo')
         response = requests.get(path, headers=self._headers())
         self.assertEqual(400, response.status_code)
+
+    def test_get_images_with_links(self):
+        image_ids = []
+
+        # Image list should be empty
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        self.assertEqual(0, len(images))
+
+        # Create an image
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-1', 'type': 'kernel'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_id = json.loads(response.text)['image']['id']
+
+        # Create an image
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-2', 'type': 'kernel'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_id = json.loads(response.text)['image']['id']
+
+        # Create an image
+        path = self._url('/images')
+        headers = self._headers({'content-type': 'application/json'})
+        data = json.dumps({'name': 'image-3', 'type': 'kernel'})
+        response = requests.post(path, headers=headers, data=data)
+        self.assertEqual(200, response.status_code)
+        image_id = json.loads(response.text)['image']['id']
+
+        # Image list should contain 3 images
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        self.assertEqual(3, len(images))
+        image_ids = [image['id'] for image in images]
+
+        # First link should always return link to first image
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        self.assertEqual(3, len(images))
+        self.assertEqual('/v2/images', first)
+        self.assertTrue('next' not in json.loads(response.text))
+
+        # First link should always return link to first image and
+        # the remaining parameters should be forwarded to first
+        path = self._url('/images?sort_key=name&limit=3')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        self.assertEqual(3, len(images))
+        self.assertEqual('/v2/images?sort_key=name&limit=3', first)
+
+        # Next should contain the marker for next query
+        path = self._url('/images?limit=2')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        next_marker = json.loads(response.text)['next']
+        self.assertEqual(2, len(images))
+        expected = '/v2/images?limit=2&marker=%s' % image_ids[1]
+        self.assertEqual(expected, next_marker)
+        self.assertEqual('/v2/images?limit=2', first)
+
+        # Next link should contain the forwarded parameters
+        params = 'sort_key=name&sort_dir=asc&limit=2'
+        path = self._url('/images?%s' % params)
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        next_marker = json.loads(response.text)['next']
+        self.assertEqual(2, len(images))
+        expected = '/v2/images?%s&marker=%s' % (params, image_ids[1])
+        self.assertEqual(expected, next_marker)
+        self.assertEqual('/v2/images?%s' % params, first)
+
+        # Limit greater than number of images
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        self.assertEqual(3, len(images))
+        self.assertTrue('next' not in json.loads(response.text))
+        self.assertEqual('/v2/images', first)
+
+        #Delete all images
+        path = self._url('/images/%s' % image_ids[0])
+        response = requests.delete(path, headers=self._headers())
+        self.assertEqual(204, response.status_code)
+
+        path = self._url('/images/%s' % image_ids[1])
+        response = requests.delete(path, headers=self._headers())
+        self.assertEqual(204, response.status_code)
+
+        path = self._url('/images/%s' % image_ids[2])
+        response = requests.delete(path, headers=self._headers())
+        self.assertEqual(204, response.status_code)
+
+        # No images
+        path = self._url('/images')
+        response = requests.get(path, headers=self._headers())
+        self.assertEqual(200, response.status_code)
+        images = json.loads(response.text)['images']
+        first = json.loads(response.text)['first']
+        self.assertEqual(0, len(images))
+        self.assertTrue('next' not in json.loads(response.text))
+        self.assertEqual('/v2/images', first)

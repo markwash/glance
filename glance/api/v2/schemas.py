@@ -22,16 +22,20 @@ class Controller(object):
     def __init__(self):
         self.access_schema = image_access.get_schema()
         self.image_schema = images.get_schema()
+        self.image_collection_schema = images.get_collection_schema()
 
     def index(self, req):
-        links = [
-            {'rel': 'image', 'href': '/v2/schemas/image'},
-            {'rel': 'access', 'href': '/v2/schemas/image/access'},
-        ]
-        return {'links': links}
+        return {
+            'image': '/v2/schemas/image',
+            'images': '/v2/schemas/images',
+            'access': '/v2/schemas/image/access',
+        }
 
     def image(self, req):
         return self.image_schema.raw()
+
+    def images(self, req):
+        return self.image_collection_schema.raw()
 
     def access(self, req):
         return self.access_schema.raw()
