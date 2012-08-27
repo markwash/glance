@@ -141,11 +141,61 @@ class ImagesController(object):
         return self._append_tags(req.context, image)
 
     @utils.mutating
+    def update2(self, req, image_id, changes):
+        context = req.context
+        try:
+            image = self.db_api.image_get(context, image_id)
+        except (exception.NotFound, exception.Forbidden):
+            raise webob.exc.HTTPNotFound()
+
+        image = self._normalize_properties(dict(image))
+
+        updates = {}
+        property_updates = image['properties']
+        for change in changes:
+            path = change['path']
+            if len(path) == 1:
+                updates[change['path'][0]] = change['value']
+            else:
+                key = path[-1]
+                op = change['op']
+                if op == 'replace':
+                    if key not in property_updates:
+                        msg = _("Property %s not already present.")
+                        raise webob.exc.HTTPConflict(msg % key)
+                    property_updates[key] = change['value']
+                if op == 'add':
+                    if key in property_updates:
+                        msg = _("Property %s already present.")
+                        raise webob.exc.HTTPConflict(msg % key)
+                    property_updates[key] = change['value']
+                updates['properties'] = property_updates
+
+        tags = None
+        if len(updates) > 0:
+            tags = self._extract_tags(updates)
+            purge_props = 'properties' in updates
+            try:
+                image = self.db_api.image_update(context, image_id, updates,
+                                                 purge_props)
+            except (exception.NotFound, exception.Forbidden):
+                raise webob.exc.HTTPNotFound()
+            image = self._normalize_properties(dict(image))
+
+        if tags is not None:
+            self.db_api.image_tag_set_all(req.context, image_id, tags)
+            image['tags'] = tags
+        else:
+            self._append_tags(req.context, image)
+
+        return image
+
+    @utils.mutating
     def update(self, req, image_id, image):
-        self._enforce(req, 'modify_image')
+        self._enforce(req, 'modify_image') # ***
         is_public = image.get('is_public')
         if is_public:
-            self._enforce(req, 'publicize_image')
+            self._enforce(req, 'publicize_image') # ***
         tags = self._extract_tags(image)
 
         try:
@@ -186,11 +236,7 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
         self.schema = schema or get_schema()
 
     def _parse_image(self, request):
-        output = super(RequestDeserializer, self).default(request)
-        if not 'body' in output:
-            msg = _('Body expected in request.')
-            raise webob.exc.HTTPBadRequest(explanation=msg)
-        body = output.pop('body')
+        body = self._get_request_body(request)
         try:
             self.schema.validate(body)
         except exception.InvalidObject as e:
@@ -233,6 +279,55 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
     def create(self, request):
         return self._parse_image(request)
+
+    def _get_request_body(self, request):
+        output = super(RequestDeserializer, self).default(request)
+        if not 'body' in output:
+            msg = _('Body expected in request.')
+            raise webob.exc.HTTPBadRequest(explanation=msg)
+        return output['body']
+
+    def _get_change_operation(self, raw_change):
+        op = None
+        for key in ['replace', 'add', 'remove']:
+            if key in raw_change:
+                if op is not None:
+                    msg = _('Actions must contain only one of'
+                            ' "add", "remove", or "replace"')
+                    raise webob.exc.HTTPBadRequest(explanation=msg)
+                op = key
+        if op is None:
+            msg = _('Actions must contain exactly one of'
+                    ' "add", "remove", or "replace"')
+            raise webob.exc.HTTPBadRequest(explanation=msg)
+        return op
+
+    def _get_change_path(self, raw_change, op):
+        path = [raw_change[op].lstrip('/')]
+        if path[0] not in ['checksum', 'created_at', 'container_format',
+                'disk_format', 'id', 'min_disk', 'min_ram', 'name',
+                'size', 'status', 'tags', 'updated_at', 'visibility',
+                'protected']:
+            path.insert(0, 'properties')
+        return path
+
+    def _get_change_value(self, raw_change, op):
+        if 'value' not in raw_change:
+            msg = _('Action "%s" requires a value parameter')
+            raise webob.exc.HTTPBadRequest(explanation=msg % op)
+        return raw_change['value']
+
+    def update2(self, request):
+        changes = []
+        body = self._get_request_body(request)
+        for raw_change in body:
+            op = self._get_change_operation(raw_change)
+            path = self._get_change_path(raw_change, op)
+            change = {'op': op, 'path': path}
+            if not op == 'remove':
+                change['value'] = self._get_change_value(raw_change, op)
+            changes.append(change)
+        return {'changes': changes}
 
     def update(self, request):
         return self._parse_image(request)

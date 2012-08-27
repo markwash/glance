@@ -275,14 +275,19 @@ def image_create(context, image_values):
 
 
 @log_call
-def image_update(context, image_id, image_values):
+def image_update(context, image_id, image_values, purge_props=False):
     global DATA
     try:
         image = DATA['images'][image_id]
     except KeyError:
         raise exception.NotFound(image_id=image_id)
 
-    properties = image_values.pop('properties', {})
+    properties = {}
+    if not purge_props:
+        for item in image['properties']:
+            properties[item['name']] = item['value']
+
+    properties.update(image_values.pop('properties', {}))
     properties = [{'name': k,
                    'value': v,
                    'deleted': False} for k, v in properties.items()]
