@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import datetime
 import functools
 
@@ -202,7 +203,8 @@ def _sort_images(images, sort_key, sort_dir):
 
 
 @log_call
-def image_get(context, image_id, session=None, force_show_deleted=False):
+def image_get(context, image_id, session=None,
+              force_show_deleted=False, direct=False):
     try:
         image = DATA['images'][image_id]
     except KeyError:
@@ -220,7 +222,9 @@ def image_get(context, image_id, session=None, force_show_deleted=False):
         LOG.info('Unable to get unowned image')
         raise exception.Forbidden()
 
-    return image
+    if direct:
+        return image
+    return copy.deepcopy(image)
 
 
 @log_call
@@ -237,7 +241,7 @@ def image_get_all(context, filters=None, marker=None, limit=None,
 
 @log_call
 def image_property_create(context, values):
-    image = image_get(context, values['image_id'])
+    image = image_get(context, values['image_id'], direct=True)
     prop = _image_property_format(values['image_id'], values['name'],
                 values['value'])
     image['properties'].append(prop)
@@ -352,6 +356,7 @@ def image_destroy(context, image_id):
     try:
         DATA['images'][image_id]['deleted'] = True
         DATA['images'][image_id]['deleted_at'] = datetime.datetime.utcnow()
+        return copy.deepcopy(DATA['images'][image_id])
     except KeyError:
         raise exception.NotFound()
 
