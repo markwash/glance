@@ -138,7 +138,7 @@ class FakePolicyEnforcer(object):
         self.rules = {}
 
     def enforce(self, _ctxt, action, target=None, **kwargs):
-        """Raise Forbidden if a rule for given action is set to false."""
+        """Raise Forbidden if a rule for the action is False."""
         if self.rules.get(action) is False:
             raise exception.Forbidden()
 
