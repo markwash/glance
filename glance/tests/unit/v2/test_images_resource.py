@@ -292,8 +292,8 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_show(self):
         request = unit_test_utils.get_fake_request()
         output = self.controller.show(request, image_id=UUID2)
-        self.assertEqual(UUID2, output['id'])
-        self.assertEqual('2', output['name'])
+        self.assertEqual(UUID2, output.properties['id'])
+        self.assertEqual('2', output.properties['name'])
 
     def test_show_deleted_properties(self):
         """ Ensure that the api filters out deleted image properties. """
@@ -311,7 +311,7 @@ class TestImagesController(test_utils.BaseTestCase):
 
         request = unit_test_utils.get_fake_request()
         output = self.controller.show(request, image['id'])
-        self.assertEqual(output['properties'], {'yin': 'yang'})
+        self.assertEqual(output.properties['yin'], 'yang')
 
     def test_show_non_existent(self):
         request = unit_test_utils.get_fake_request()
@@ -402,8 +402,8 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output['properties']['foo'], 'bar')
-        self.assertEqual(output['properties']['snitch'], 'golden')
+        self.assertEqual(output.properties['foo'], 'bar')
+        self.assertEqual(output.properties['snitch'], 'golden')
 
         changes = [
             {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
@@ -416,8 +416,6 @@ class TestImagesController(test_utils.BaseTestCase):
 
     def test_update_add_property(self):
         request = unit_test_utils.get_fake_request()
-        output = self.controller.show(request, UUID1)
-        self.assertEqual(len(output['properties']), 0)
 
         changes = [
             {'op': 'add', 'path': ['properties', 'murphy'], 'value': 'brown'},
@@ -433,8 +431,8 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output['properties']['foo'], 'bar')
-        self.assertEqual(output['properties']['snitch'], 'golden')
+        self.assertEqual(output.properties['foo'], 'bar')
+        self.assertEqual(output.properties['snitch'], 'golden')
 
         changes = [
             {'op': 'remove', 'path': ['properties', 'snitch']},
@@ -465,8 +463,6 @@ class TestImagesController(test_utils.BaseTestCase):
 
     def test_update_replace_missing_property(self):
         request = unit_test_utils.get_fake_request()
-        output = self.controller.show(request, UUID1)
-        self.assertEqual(len(output['properties']), 0)
 
         changes = [
             {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
@@ -480,7 +476,7 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output['properties'], {'foo': 'bar'})
+        self.assertEqual(output.properties['foo'], 'bar')
 
         changes = [
             {'op': 'add', 'path': ['properties', 'foo'], 'value': 'baz'},
@@ -490,8 +486,6 @@ class TestImagesController(test_utils.BaseTestCase):
 
     def test_update_remove_missing_property(self):
         request = unit_test_utils.get_fake_request()
-        output = self.controller.show(request, UUID1)
-        self.assertEqual(len(output['properties']), 0)
 
         changes = [
             {'op': 'remove', 'path': ['properties', 'foo']},

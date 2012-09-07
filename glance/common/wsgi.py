@@ -69,7 +69,7 @@ CONF.register_opt(workers_opt)
 class WritableLogger(object):
     """A thin wrapper that responds to `write` and logs."""
 
-    def __init__(self, logger, level=logging.DEBUG):
+    def __init__(self, logger, level=logging.WARN):
         self.logger = logger
         self.level = level
 

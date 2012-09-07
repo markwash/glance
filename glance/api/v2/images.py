@@ -27,6 +27,7 @@ from glance.common import exception
 from glance.common import utils
 from glance.common import wsgi
 import glance.db
+import glance.domain
 import glance.notifier
 from glance.openstack.common import cfg
 import glance.openstack.common.log as logging
@@ -45,6 +46,7 @@ class ImagesController(object):
             store_api=None):
         self.db_api = db_api or glance.db.get_api()
         self.db_api.configure_db()
+        self.auth_domain = glance.domain.AuthDomain(self.db_api)
         self.policy = policy_enforcer or policy.Enforcer()
         self.notifier = notifier or glance.notifier.Notifier()
         self.store_api = store_api or glance.store
@@ -147,10 +149,12 @@ class ImagesController(object):
             raise webob.exc.HTTPNotFound()
 
     def show(self, req, image_id):
-        self._enforce(req, 'get_image')
-        image = self._get_image(req.context, image_id)
-        image = self._normalize_properties(dict(image))
-        return self._append_tags(req.context, image)
+        self._enforce(req, 'get_image') # maybe next on the list to remove
+        image_repo = self.auth_domain.get_image_repo(req.context)
+        try:
+            return image_repo.find(image_id)
+        except (exception.NotFound, exception.Forbidden):
+            raise webob.exc.HTTPNotFound()
 
     @utils.mutating
     def update(self, req, image_id, changes):
@@ -163,6 +167,7 @@ class ImagesController(object):
             LOG.info(msg)
             raise webob.exc.HTTPNotFound(explanation=msg)
 
+        print dict(image)
         image = self._normalize_properties(dict(image))
         updates = self._extract_updates(req, image, changes)
 
@@ -534,6 +539,8 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         for key in attributes:
             image_view[key] = image[key]
 
+        # 1. turn location into direct_url              --> just a vagary of the v2 api
+        # 2. restrict access to location/direct_url     --> core authz
         location = image['location']
         if CONF.show_image_direct_url and location is not None:
             image_view['direct_url'] = location
@@ -567,6 +574,20 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         body = json.dumps(self._format_image(image), ensure_ascii=False)
         response.unicode_body = unicode(body)
         response.content_type = 'application/json'
+
+    def show(self, response, image):
+        body = dict(image.properties)
+        body['tags'] = list(image.tags)
+        location = body.pop('location')
+        if CONF.show_image_direct_url and location is not None: # domain
+            body['direct_url'] = location
+        body['self'] = self._get_image_href(image)
+        body['file'] = self._get_image_href(image, 'file')
+        body['schema'] = '/v2/schemas/image'
+        self._serialize_datetimes(body)
+        body = self.schema.filter(body) # domain
+        return body
+
 
     def update(self, response, image):
         body = json.dumps(self._format_image(image), ensure_ascii=False)

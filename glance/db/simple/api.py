@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
 import datetime
 import functools
 import uuid
@@ -205,7 +206,7 @@ def _sort_images(images, sort_key, sort_dir):
 @log_call
 def image_get(context, image_id, session=None, force_show_deleted=False):
     try:
-        image = DATA['images'][image_id]
+        image = copy.deepcopy(DATA['images'][image_id])
     except KeyError:
         LOG.info('Could not find image %s' % image_id)
         raise exception.NotFound()
