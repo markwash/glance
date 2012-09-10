@@ -16,6 +16,7 @@ class ImageRepo(object):
 
     def find(self, image_id):
         db_api_image = dict(self.db_api.image_get(self.context, image_id))
+        del db_api_image['deleted']
         properties = {}
         for prop in db_api_image.pop('properties'):
             # db api requires us to filter deleted
@@ -29,4 +30,4 @@ class Image(object):
     
     def __init__(self, properties=None, tags=None):
         self.properties = properties or {}
-        self.tags = tags or set()
+        self.tags = tags or []

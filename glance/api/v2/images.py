@@ -578,16 +578,18 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
     def show(self, response, image):
         body = dict(image.properties)
         body['tags'] = list(image.tags)
+        del body['owner']
         location = body.pop('location')
         if CONF.show_image_direct_url and location is not None: # domain
             body['direct_url'] = location
-        body['self'] = self._get_image_href(image)
-        body['file'] = self._get_image_href(image, 'file')
+        body['self'] = self._get_image_href(image.properties)
+        body['file'] = self._get_image_href(image.properties, 'file')
         body['schema'] = '/v2/schemas/image'
         self._serialize_datetimes(body)
         body = self.schema.filter(body) # domain
-        return body
-
+        body = json.dumps(body, ensure_ascii=False)
+        response.unicode_body = unicode(body)
+        response.content_type = 'application/json'
 
     def update(self, response, image):
         body = json.dumps(self._format_image(image), ensure_ascii=False)

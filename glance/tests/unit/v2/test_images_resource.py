@@ -71,6 +71,26 @@ def _fixture(id, **kwargs):
     return obj
 
 
+def _fixture2(id, tags=None, **kwargs):
+    properties = {
+        'id': id,
+        'name': None,
+        'visibility': 'private',
+        'checksum': None,
+        'owner': None,
+        'status': 'queued',
+        'size': None,
+        'location': None,
+        'protected': False,
+        'disk_format': None,
+        'container_format': None,
+        'min_ram': None,
+        'min_disk': None,
+    }
+    properties.update(kwargs)
+    return glance.domain.Image(properties, tags)
+
+
 class TestImagesController(test_utils.BaseTestCase):
 
     def setUp(self):
@@ -1198,6 +1218,18 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             # and sets most values to None
             _fixture(UUID2, created_at=DATETIME, updated_at=DATETIME),
         ]
+        self.fixtures2 = [
+            #NOTE(bcwaldon): This first fixture has every property defined
+            _fixture2(UUID1, name='image-1', size=1024, tags=['one', 'two'],
+                     created_at=DATETIME, updated_at=DATETIME, owner=TENANT1,
+                     visibility='public', container_format='ami',
+                     disk_format='ami', min_ram=128, min_disk=10,
+                     checksum='ca425b88f047ce8ec45ee90e813ada91'),
+
+            #NOTE(bcwaldon): This second fixture depends on default behavior
+            # and sets most values to None
+            _fixture2(UUID2, created_at=DATETIME, updated_at=DATETIME),
+        ]
 
     def test_index(self):
         expected = {
@@ -1285,7 +1317,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             'schema': '/v2/schemas/image',
         }
         response = webob.Response()
-        self.serializer.show(response, self.fixtures[0])
+        self.serializer.show(response, self.fixtures2[0])
         self.assertEqual(expected, json.loads(response.body))
         self.assertEqual('application/json', response.content_type)
 
@@ -1303,7 +1335,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             'schema': '/v2/schemas/image',
         }
         response = webob.Response()
-        self.serializer.show(response, self.fixtures[1])
+        self.serializer.show(response, self.fixtures2[1])
         self.assertEqual(expected, json.loads(response.body))
 
     def test_create(self):
@@ -1375,6 +1407,25 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
                     properties={'lang': u'Fran\u00E7ais',
                                 u'dispos\u00E9': u'f\u00E2ch\u00E9'}),
         ]
+        self.fixtures2 = [
+            #NOTE(bcwaldon): This first fixture has every property defined
+            _fixture2(UUID1, **{
+                'name': u'OpenStack\u2122-1',
+                'size': 1024,
+                'tags': [u'\u2160', u'\u2161'],
+                'created_at': DATETIME,
+                'updated_at': DATETIME,
+                'owner': TENANT1,
+                'visibility': 'public',
+                'container_format': 'ami',
+                'disk_format': 'ami',
+                'min_ram': 128,
+                'min_disk': 10,
+                'checksum': u'ca425b88f047ce8ec45ee90e813ada91',
+                'lang': u'Fran\u00E7ais',
+                u'dispos\u00E9': u'f\u00E2ch\u00E9',
+            }),
+        ]
 
     def test_index(self):
         expected = {
@@ -1434,7 +1485,7 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
             u'dispos\u00E9': u'f\u00E2ch\u00E9',
         }
         response = webob.Response()
-        self.serializer.show(response, self.fixtures[0])
+        self.serializer.show(response, self.fixtures2[0])
         self.assertEqual(expected, json.loads(response.body))
         self.assertEqual('application/json', response.content_type)
 
@@ -1510,10 +1561,10 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
         schema = glance.api.v2.images.get_schema(custom_image_properties)
         self.serializer = glance.api.v2.images.ResponseSerializer(schema)
 
-        self.fixture = _fixture(UUID2, name='image-2', owner=TENANT2,
+        self.fixture = _fixture2(UUID2, name='image-2', owner=TENANT2,
                 checksum='ca425b88f047ce8ec45ee90e813ada91',
                 created_at=DATETIME, updated_at=DATETIME,
-                size=1024, properties={'color': 'green', 'mood': 'grouchy'})
+                size=1024, color='green', mood='grouchy')
 
     def test_show(self):
         expected = {
@@ -1537,7 +1588,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
         self.assertEqual(expected, json.loads(response.body))
 
     def test_show_reports_invalid_data(self):
-        self.fixture['properties']['color'] = 'invalid'
+        self.fixture.properties['color'] = 'invalid'
         expected = {
             'id': UUID2,
             'name': 'image-2',
@@ -1564,10 +1615,10 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
     def setUp(self):
         super(TestImagesSerializerWithAdditionalProperties, self).setUp()
         self.config(allow_additional_image_properties=True)
-        self.fixture = _fixture(UUID2, name='image-2', owner=TENANT2,
+        self.fixture = _fixture2(UUID2, name='image-2', owner=TENANT2,
             checksum='ca425b88f047ce8ec45ee90e813ada91',
             created_at=DATETIME, updated_at=DATETIME,
-            properties={'marx': 'groucho'}, size=1024)
+            marx='groucho', size=1024)
 
     def test_show(self):
         serializer = glance.api.v2.images.ResponseSerializer()
@@ -1596,7 +1647,7 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
         properties (i.e. non-string) without complaining.
         """
         serializer = glance.api.v2.images.ResponseSerializer()
-        self.fixture['properties']['marx'] = 123
+        self.fixture.properties['marx'] = 123
         expected = {
             'id': UUID2,
             'name': 'image-2',
@@ -1650,7 +1701,16 @@ class TestImagesSerializerDirectUrl(test_utils.BaseTestCase):
                 created_at=DATETIME, updated_at=DATETIME,
                 location='http://some/fake/location')
 
+        self.active_image2 = _fixture2(UUID1, name='image-1',
+                visibility='public', status='active', size=1024,
+                created_at=DATETIME, updated_at=DATETIME,
+                location='http://some/fake/location')
+
         self.queued_image = _fixture(UUID2, name='image-2', status='active',
+                created_at=DATETIME, updated_at=DATETIME,
+                checksum='ca425b88f047ce8ec45ee90e813ada91')
+
+        self.queued_image2 = _fixture2(UUID2, name='image-2', status='active',
                 created_at=DATETIME, updated_at=DATETIME,
                 checksum='ca425b88f047ce8ec45ee90e813ada91')
 
@@ -1686,15 +1746,15 @@ class TestImagesSerializerDirectUrl(test_utils.BaseTestCase):
 
     def test_show_location_enabled(self):
         self.config(show_image_direct_url=True)
-        image = self._do_show(self.active_image)
+        image = self._do_show(self.active_image2)
         self.assertEqual(image['direct_url'], 'http://some/fake/location')
 
     def test_show_location_enabled_but_not_set(self):
         self.config(show_image_direct_url=True)
-        image = self._do_show(self.queued_image)
+        image = self._do_show(self.queued_image2)
         self.assertFalse('direct_url' in image)
 
     def test_show_location_explicitly_disabled(self):
         self.config(show_image_direct_url=False)
-        image = self._do_show(self.active_image)
+        image = self._do_show(self.active_image2)
         self.assertFalse('direct_url' in image)
