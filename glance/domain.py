@@ -16,6 +16,7 @@ class ImageRepo(object):
 
     def find(self, image_id):
         db_api_image = dict(self.db_api.image_get(self.context, image_id))
+        db_api_image.pop('_sa_instance_state')  # sqlalchemy weirdness!
         del db_api_image['deleted']
         properties = {}
         for prop in db_api_image.pop('properties'):
