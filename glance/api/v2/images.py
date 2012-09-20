@@ -571,21 +571,31 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         response.location = self._get_image_href(image)
 
     def show(self, response, image):
-        body = json.dumps(self._format_image(image), ensure_ascii=False)
-        response.unicode_body = unicode(body)
-        response.content_type = 'application/json'
-
-    def show(self, response, image):
-        body = dict(image.properties)
+        body = dict(image.extra_properties)
+        attributes = ['name', 'disk_format', 'container_format', 'visibility',
+                      'size', 'status', 'checksum', 'protected',
+                      'min_ram', 'min_disk']
+        for key in attributes:
+            body[key] = getattr(image, key)
+        body['id'] = image.image_id
+        #body['name'] = image.name
+        #body['status'] = image.status
+        body['created_at'] = timeutils.isotime(image.created_at)
+        body['updated_at'] = timeutils.isotime(image.updated_at)
+        #body['visibility'] = image.visibility
+        #body['min_disk'] = image.min_disk
+        #body['min_ram'] = image.min_ram
+        #body['protected'] = image.protected
+        if CONF.show_image_direct_url and image.location is not None: # domain
+            body['direct_url'] = image.location
+        #body['checksum'] = image.checksum
+        #body['disk_format'] = image.disk_format
+        #body['container_format'] = image.container_format
+        #body['size'] = image.size
         body['tags'] = list(image.tags)
-        del body['owner']
-        location = body.pop('location')
-        if CONF.show_image_direct_url and location is not None: # domain
-            body['direct_url'] = location
-        body['self'] = self._get_image_href(image.properties)
-        body['file'] = self._get_image_href(image.properties, 'file')
+        body['self'] = self._get_image_href(body)
+        body['file'] = self._get_image_href(body, 'file')
         body['schema'] = '/v2/schemas/image'
-        self._serialize_datetimes(body)
         body = self.schema.filter(body) # domain
         body = json.dumps(body, ensure_ascii=False)
         response.unicode_body = unicode(body)

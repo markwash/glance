@@ -71,9 +71,9 @@ def _fixture(id, **kwargs):
     return obj
 
 
-def _fixture2(id, tags=None, **kwargs):
+def _fixture2(id, **kwargs):
     properties = {
-        'id': id,
+        'image_id': id,
         'name': None,
         'visibility': 'private',
         'checksum': None,
@@ -86,9 +86,10 @@ def _fixture2(id, tags=None, **kwargs):
         'container_format': None,
         'min_ram': None,
         'min_disk': None,
+        'tags': [],
     }
     properties.update(kwargs)
-    return glance.domain.Image(properties, tags)
+    return glance.domain.Image(**properties)
 
 
 class TestImagesController(test_utils.BaseTestCase):
@@ -312,8 +313,8 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_show(self):
         request = unit_test_utils.get_fake_request()
         output = self.controller.show(request, image_id=UUID2)
-        self.assertEqual(UUID2, output.properties['id'])
-        self.assertEqual('2', output.properties['name'])
+        self.assertEqual(UUID2, output.image_id)
+        self.assertEqual('2', output.name)
 
     def test_show_deleted_properties(self):
         """ Ensure that the api filters out deleted image properties. """
@@ -331,7 +332,7 @@ class TestImagesController(test_utils.BaseTestCase):
 
         request = unit_test_utils.get_fake_request()
         output = self.controller.show(request, image['id'])
-        self.assertEqual(output.properties['yin'], 'yang')
+        self.assertEqual(output.extra_properties['yin'], 'yang')
 
     def test_show_non_existent(self):
         request = unit_test_utils.get_fake_request()
@@ -422,8 +423,8 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output.properties['foo'], 'bar')
-        self.assertEqual(output.properties['snitch'], 'golden')
+        self.assertEqual(output.extra_properties['foo'], 'bar')
+        self.assertEqual(output.extra_properties['snitch'], 'golden')
 
         changes = [
             {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
@@ -451,8 +452,8 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output.properties['foo'], 'bar')
-        self.assertEqual(output.properties['snitch'], 'golden')
+        self.assertEqual(output.extra_properties['foo'], 'bar')
+        self.assertEqual(output.extra_properties['snitch'], 'golden')
 
         changes = [
             {'op': 'remove', 'path': ['properties', 'snitch']},
@@ -496,7 +497,7 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         output = self.controller.show(request, UUID1)
-        self.assertEqual(output.properties['foo'], 'bar')
+        self.assertEqual(output.extra_properties['foo'], 'bar')
 
         changes = [
             {'op': 'add', 'path': ['properties', 'foo'], 'value': 'baz'},
@@ -1303,7 +1304,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             'status': 'queued',
             'visibility': 'public',
             'protected': False,
-            'tags': ['one', 'two'],
+            'tags': set(['one', 'two']),
             'size': 1024,
             'checksum': 'ca425b88f047ce8ec45ee90e813ada91',
             'container_format': 'ami',
@@ -1318,7 +1319,9 @@ class TestImagesSerializer(test_utils.BaseTestCase):
         }
         response = webob.Response()
         self.serializer.show(response, self.fixtures2[0])
-        self.assertEqual(expected, json.loads(response.body))
+        actual = json.loads(response.body)
+        actual['tags'] = set(actual['tags'])
+        self.assertEqual(expected, actual)
         self.assertEqual('application/json', response.content_type)
 
     def test_show_minimal_fixture(self):
@@ -1422,8 +1425,8 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
                 'min_ram': 128,
                 'min_disk': 10,
                 'checksum': u'ca425b88f047ce8ec45ee90e813ada91',
-                'lang': u'Fran\u00E7ais',
-                u'dispos\u00E9': u'f\u00E2ch\u00E9',
+                'extra_properties': {'lang': u'Fran\u00E7ais',
+                                     u'dispos\u00E9': u'f\u00E2ch\u00E9'},
             }),
         ]
 
@@ -1469,7 +1472,7 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
             u'status': u'queued',
             u'visibility': u'public',
             u'protected': False,
-            u'tags': [u'\u2160', u'\u2161'],
+            u'tags': set([u'\u2160', u'\u2161']),
             u'size': 1024,
             u'checksum': u'ca425b88f047ce8ec45ee90e813ada91',
             u'container_format': u'ami',
@@ -1486,7 +1489,9 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
         }
         response = webob.Response()
         self.serializer.show(response, self.fixtures2[0])
-        self.assertEqual(expected, json.loads(response.body))
+        actual = json.loads(response.body)
+        actual['tags'] = set(actual['tags'])
+        self.assertEqual(expected, actual)
         self.assertEqual('application/json', response.content_type)
 
     def test_create(self):
@@ -1563,8 +1568,8 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
 
         self.fixture = _fixture2(UUID2, name='image-2', owner=TENANT2,
                 checksum='ca425b88f047ce8ec45ee90e813ada91',
-                created_at=DATETIME, updated_at=DATETIME,
-                size=1024, color='green', mood='grouchy')
+                created_at=DATETIME, updated_at=DATETIME, size=1024,
+                extra_properties=dict(color='green', mood='grouchy'))
 
     def test_show(self):
         expected = {
@@ -1588,7 +1593,7 @@ class TestImagesSerializerWithExtendedSchema(test_utils.BaseTestCase):
         self.assertEqual(expected, json.loads(response.body))
 
     def test_show_reports_invalid_data(self):
-        self.fixture.properties['color'] = 'invalid'
+        self.fixture.extra_properties['color'] = 'invalid'
         expected = {
             'id': UUID2,
             'name': 'image-2',
@@ -1617,8 +1622,8 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
         self.config(allow_additional_image_properties=True)
         self.fixture = _fixture2(UUID2, name='image-2', owner=TENANT2,
             checksum='ca425b88f047ce8ec45ee90e813ada91',
-            created_at=DATETIME, updated_at=DATETIME,
-            marx='groucho', size=1024)
+            created_at=DATETIME, updated_at=DATETIME, size=1024,
+            extra_properties={'marx': 'groucho'})
 
     def test_show(self):
         serializer = glance.api.v2.images.ResponseSerializer()
@@ -1647,7 +1652,7 @@ class TestImagesSerializerWithAdditionalProperties(test_utils.BaseTestCase):
         properties (i.e. non-string) without complaining.
         """
         serializer = glance.api.v2.images.ResponseSerializer()
-        self.fixture.properties['marx'] = 123
+        self.fixture.extra_properties['marx'] = 123
         expected = {
             'id': UUID2,
             'name': 'image-2',
