@@ -46,7 +46,6 @@ class ImagesController(object):
             store_api=None):
         self.db_api = db_api or glance.db.get_api()
         self.db_api.configure_db()
-        self.auth_domain = glance.domain.AuthDomain(self.db_api)
         self.policy = policy_enforcer or policy.Enforcer()
         self.notifier = notifier or glance.notifier.Notifier()
         self.store_api = store_api or glance.store
@@ -112,6 +111,27 @@ class ImagesController(object):
         self.notifier.info('image.update', image)
         return image
 
+    #@utils.mutating
+    def create(self, req, image, extra_properties, tags):
+        self._enforce(req, 'add_image')
+        is_public = image.get('is_public')
+        if is_public:
+            self._enforce(req, 'publicize_image')
+        image_factory = glance.domain.ImageFactory(req.context)
+        try:
+            image = image_factory.new_image(extra_properties=extra_properties,
+                                            tags=tags, **image)
+        except (exception.ReadonlyAttribute,
+                exception.ReservedAttribute) as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
+
+        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
+        image_repo.add(image)
+        #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
+        #self.notifier.info('image.update', image)
+        return image
+
+
     def index(self, req, marker=None, limit=None, sort_key='created_at',
               sort_dir='desc', filters={}):
         self._enforce(req, 'get_images')
@@ -150,7 +170,7 @@ class ImagesController(object):
 
     def show(self, req, image_id):
         self._enforce(req, 'get_image') # maybe next on the list to remove
-        image_repo = self.auth_domain.get_image_repo(req.context)
+        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
         try:
             return image_repo.find(image_id)
         except (exception.NotFound, exception.Forbidden):
@@ -296,6 +316,7 @@ class ImagesController(object):
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
+    _disallowed_properties = ['direct_url', 'self', 'file', 'schema']
     _readonly_properties = ['created_at', 'updated_at', 'status', 'checksum',
             'size', 'direct_url', 'self', 'file', 'schema']
     _reserved_properties = ['owner', 'is_public', 'location',
@@ -348,6 +369,13 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
                 raise webob.exc.HTTPForbidden(explanation=unicode(msg))
 
     @classmethod
+    def _check_allowed(cls, image):
+        for key in cls._disallowed_properties:
+            if key in image:
+                msg = "Attribute \'%s\' is read-only." % key
+                raise webob.exc.HTTPForbidden(explanation=unicode(msg))
+
+    @classmethod
     def _check_reserved(cls, image):
         for key in cls._reserved_properties:
             if key in image:
@@ -356,6 +384,23 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
     def create(self, request):
         return self._parse_image(request)
+
+    def create(self, request):
+        body = self._get_request_body(request)
+        self._check_allowed(body)
+        try:
+            self.schema.validate(body)
+        except exception.InvalidObject as e:
+            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+        image = {}
+        properties = body
+        tags = properties.pop('tags', None)
+        for key in self._base_properties:
+            try:
+                image[key] = properties.pop(key)
+            except KeyError:
+                pass
+        return dict(image=image, extra_properties=properties, tags=tags)
 
     def _get_change_operation(self, raw_change):
         op = None
@@ -565,9 +610,7 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
 
     def create(self, response, image):
         response.status_int = 201
-        body = json.dumps(self._format_image(image), ensure_ascii=False)
-        response.unicode_body = unicode(body)
-        response.content_type = 'application/json'
+        self.show(response, image)
         response.location = self._get_image_href(image)
 
     def show(self, response, image):
@@ -578,20 +621,10 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         for key in attributes:
             body[key] = getattr(image, key)
         body['id'] = image.image_id
-        #body['name'] = image.name
-        #body['status'] = image.status
         body['created_at'] = timeutils.isotime(image.created_at)
         body['updated_at'] = timeutils.isotime(image.updated_at)
-        #body['visibility'] = image.visibility
-        #body['min_disk'] = image.min_disk
-        #body['min_ram'] = image.min_ram
-        #body['protected'] = image.protected
         if CONF.show_image_direct_url and image.location is not None: # domain
             body['direct_url'] = image.location
-        #body['checksum'] = image.checksum
-        #body['disk_format'] = image.disk_format
-        #body['container_format'] = image.container_format
-        #body['size'] = image.size
         body['tags'] = list(image.tags)
         body['self'] = self._get_image_href(body)
         body['file'] = self._get_image_href(body, 'file')

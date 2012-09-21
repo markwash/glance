@@ -125,6 +125,14 @@ class InvalidFilterRangeValue(Invalid):
     message = _("Unable to filter using the specified range.")
 
 
+class ReadonlyProperty(Invalid):
+    message = _("Attribute \'%(property)s\' is read-only.")
+
+
+class ReservedProperty(Invalid):
+    message = _("Attribute \'%(property)s\' is reserved.")
+
+
 class AuthorizationRedirect(GlanceException):
     message = _("Redirecting to %(uri)s for authorization.")
 
