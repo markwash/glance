@@ -86,34 +86,49 @@ class ImageRepo(object):
 
     def find(self, image_id):
         db_api_image = dict(self.db_api.image_get(self.context, image_id))
-        if db_api_image['is_public']:
+        tags = self.db_api.image_tag_get_all(self.context, image_id)
+        return self._format_image_from_db(db_api_image, tags)
+
+    def find_many(marker=None, limit=None, sort_key=None,
+                  sort_dir=None, filters=None):
+        db_api_images = self.db_api.image_get_all(self.context, filters=filters,
+                                           marker=marker, limit=limit,
+                                           sort_key=sort_key,
+                                           sort_dir=sort_dir)
+        images = []
+        for db_api_image in db_api_images:
+            tags = self.db_api.image_tag_get_all(self.context, image_id)
+            images.append(self._format_image_from_db(db_api_image, tags))
+        return images
+
+    def _format_image_from_db(self, db_image, db_tags):
+        if db_image['is_public']:
             visibility = 'public'
         else:
             visibility = 'private'
         properties = {}
-        for prop in db_api_image.pop('properties'):
+        for prop in db_image.pop('properties'):
             # db api requires us to filter deleted
             if not prop['deleted']:
                 properties[prop['name']] = prop['value']
-        tags = self.db_api.image_tag_get_all(self.context, image_id)
         return Image(
-            image_id=db_api_image['id'],
-            name=db_api_image['name'],
-            status=db_api_image['status'],
-            created_at=db_api_image['created_at'],
-            updated_at=db_api_image['updated_at'],
+            image_id=db_image['id'],
+            name=db_image['name'],
+            status=db_image['status'],
+            created_at=db_image['created_at'],
+            updated_at=db_image['updated_at'],
             visibility=visibility,
-            min_disk=db_api_image['min_disk'],
-            min_ram=db_api_image['min_ram'],
-            protected=db_api_image['protected'],
-            location=db_api_image['location'],
-            checksum=db_api_image['checksum'],
-            owner=db_api_image['owner'],
-            disk_format=db_api_image['disk_format'],
-            container_format=db_api_image['container_format'],
-            size=db_api_image['size'],
+            min_disk=db_image['min_disk'],
+            min_ram=db_image['min_ram'],
+            protected=db_image['protected'],
+            location=db_image['location'],
+            checksum=db_image['checksum'],
+            owner=db_image['owner'],
+            disk_format=db_image['disk_format'],
+            container_format=db_image['container_format'],
+            size=db_image['size'],
             extra_properties=properties,
-            tags=tags
+            tags=db_tags
         )
 
     def add(self, image):

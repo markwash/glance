@@ -111,7 +111,7 @@ class ImagesController(object):
         self.notifier.info('image.update', image)
         return image
 
-    #@utils.mutating
+    @utils.mutating
     def create(self, req, image, extra_properties, tags):
         self._enforce(req, 'add_image')
         is_public = image.get('is_public')
@@ -127,10 +127,39 @@ class ImagesController(object):
 
         image_repo = glance.domain.ImageRepo(req.context, self.db_api)
         image_repo.add(image)
+        # these are going to depend on other changes
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
         #self.notifier.info('image.update', image)
         return image
 
+    def index(self, req, marker=None, limit=None, sort_key='created_at',
+              sort_dir='desc', filters=None):
+        self._enforce(req, 'get_images')
+
+        if filters is None:
+            filters = {}
+        filters['deleted'] = False
+        filters.setdefault('is_public', True)
+
+        if limit is None:
+            limit = CONF.limit_param_default
+        limit = min(CONF.api_limit_max, limit)
+
+        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
+        try:
+            images = image_repo.find_many(marker=marker, limit=limit,
+                                          sort_key=sort_key, sort_dir=sort_dir,
+                                          filters=filters)
+            if len(images) != 0 and len(images) == limit:
+                result['next_marker'] = images[-1]['id']
+        except exception.InvalidFilterRangeValue as e:
+            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+        except exception.InvalidSortKey as e:
+            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+        except exception.NotFound as e:
+            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+        result['images'] = images
+        return result
 
     def index(self, req, marker=None, limit=None, sort_key='created_at',
               sort_dir='desc', filters={}):
@@ -614,25 +643,29 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         response.location = self._get_image_href(image)
 
     def show(self, response, image):
-        body = dict(image.extra_properties)
+        image_view = self._format_image_new(image)
+        body = json.dumps(image_view, ensure_ascii=False)
+        response.unicode_body = unicode(body)
+        response.content_type = 'application/json'
+
+    def _format_image_new(self, image):
+        image_view = dict(image.extra_properties)
         attributes = ['name', 'disk_format', 'container_format', 'visibility',
                       'size', 'status', 'checksum', 'protected',
                       'min_ram', 'min_disk']
         for key in attributes:
-            body[key] = getattr(image, key)
-        body['id'] = image.image_id
-        body['created_at'] = timeutils.isotime(image.created_at)
-        body['updated_at'] = timeutils.isotime(image.updated_at)
+            image_view[key] = getattr(image, key)
+        image_view['id'] = image.image_id
+        image_view['created_at'] = timeutils.isotime(image.created_at)
+        image_view['updated_at'] = timeutils.isotime(image.updated_at)
         if CONF.show_image_direct_url and image.location is not None: # domain
-            body['direct_url'] = image.location
-        body['tags'] = list(image.tags)
-        body['self'] = self._get_image_href(body)
-        body['file'] = self._get_image_href(body, 'file')
-        body['schema'] = '/v2/schemas/image'
-        body = self.schema.filter(body) # domain
-        body = json.dumps(body, ensure_ascii=False)
-        response.unicode_body = unicode(body)
-        response.content_type = 'application/json'
+            image_view['direct_url'] = image.location
+        image_view['tags'] = list(image.tags)
+        image_view['self'] = self._get_image_href(image_view)
+        image_view['file'] = self._get_image_href(image_view, 'file')
+        image_view['schema'] = '/v2/schemas/image'
+        image_view = self.schema.filter(image_view) # domain
+        return image_view
 
     def update(self, response, image):
         body = json.dumps(self._format_image(image), ensure_ascii=False)
@@ -644,7 +677,7 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         params.pop('marker', None)
         query = urllib.urlencode(params)
         body = {
-               'images': [self._format_image(i) for i in result['images']],
+               'images': [self._format_image_new(i) for i in result['images']],
                'first': '/v2/images',
                'schema': '/v2/schemas/images',
         }
