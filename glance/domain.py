@@ -6,7 +6,7 @@ from glance.openstack.common import timeutils
 #    def __init__(self, db_api=None):
 #        self.db_api = db_api or glance.db.get_api()
 #        self.db_api.configure_db()
-#    
+#
 #    def get_image_repo(self, context):
 #        return ImageRepo(context, self.db_api)
 #
@@ -42,7 +42,7 @@ class ImageFactory(object):
     def _check_readonly(self, kwargs):
         for key in self._readonly_properties:
             if key in kwargs:
-                raise glance.exception.ReadonlyAttribute(property=key)
+                raise glance.exception.ReadonlyProperty(property=key)
 
     def _check_unexpected(self, kwargs):
         if len(kwargs) > 0:
@@ -51,8 +51,8 @@ class ImageFactory(object):
 
     def _check_reserved(self, properties):
         for key in self._reserved_properties:
-            if key in extra_properties:
-                raise glance.exception.ReservedAttribute(property=key)
+            if key in properties:
+                raise glance.exception.ReservedProperty(property=key)
 
     def new_image(self, image_id=None, name=None, visibility='private',
                   min_disk=0, min_ram=0, protected=False, owner=None,
@@ -66,7 +66,7 @@ class ImageFactory(object):
             image_id = glance.common.utils.generate_uuid()
         created_at = timeutils.utcnow()
         updated_at = created_at
-        status = 'queued' 
+        status = 'queued'
         owner = self.context.owner
 
         return Image(image_id=image_id, name=name, status=status,
@@ -89,7 +89,7 @@ class ImageRepo(object):
         tags = self.db_api.image_tag_get_all(self.context, image_id)
         return self._format_image_from_db(db_api_image, tags)
 
-    def find_many(marker=None, limit=None, sort_key=None,
+    def find_many(self, marker=None, limit=None, sort_key=None,
                   sort_dir=None, filters=None):
         db_api_images = self.db_api.image_get_all(self.context, filters=filters,
                                            marker=marker, limit=limit,
@@ -97,7 +97,8 @@ class ImageRepo(object):
                                            sort_dir=sort_dir)
         images = []
         for db_api_image in db_api_images:
-            tags = self.db_api.image_tag_get_all(self.context, image_id)
+            tags = self.db_api.image_tag_get_all(self.context,
+                                                 db_api_image['id'])
             images.append(self._format_image_from_db(db_api_image, tags))
         return images
 
@@ -161,7 +162,7 @@ class ImageRepo(object):
         pass
 
 class Image(object):
-    
+
     def __init__(self, image_id, status, created_at, updated_at, name=None,
                  visibility='private', min_disk=0, min_ram=0, protected=False,
                  location=None, checksum=None, owner=None, disk_format=None,

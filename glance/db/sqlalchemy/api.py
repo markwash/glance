@@ -576,13 +576,13 @@ def _image_update(context, values, image_id, purge_props=False):
             # Perform authorization check
             check_mutate_authorization(context, image_ref)
         else:
-            if 'size' in values:
+            if 'size' in values and values['size']:
                 values['size'] = int(values['size'])
 
-            if 'min_ram' in values:
+            if 'min_ram' in values and values['min_ram']:
                 values['min_ram'] = int(values['min_ram'] or 0)
 
-            if 'min_disk' in values:
+            if 'min_disk' in values and values['min_disk']:
                 values['min_disk'] = int(values['min_disk'] or 0)
 
             values['is_public'] = bool(values.get('is_public', False))

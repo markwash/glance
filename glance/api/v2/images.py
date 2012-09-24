@@ -121,8 +121,8 @@ class ImagesController(object):
         try:
             image = image_factory.new_image(extra_properties=extra_properties,
                                             tags=tags, **image)
-        except (exception.ReadonlyAttribute,
-                exception.ReservedAttribute) as e:
+        except (exception.ReadonlyProperty,
+                exception.ReservedProperty) as e:
             raise webob.exc.HTTPForbidden(explanation=unicode(e))
 
         image_repo = glance.domain.ImageRepo(req.context, self.db_api)
@@ -135,7 +135,7 @@ class ImagesController(object):
     def index(self, req, marker=None, limit=None, sort_key='created_at',
               sort_dir='desc', filters=None):
         self._enforce(req, 'get_images')
-
+        result = {}
         if filters is None:
             filters = {}
         filters['deleted'] = False
@@ -151,7 +151,7 @@ class ImagesController(object):
                                           sort_key=sort_key, sort_dir=sort_dir,
                                           filters=filters)
             if len(images) != 0 and len(images) == limit:
-                result['next_marker'] = images[-1]['id']
+                result['next_marker'] = images[-1].image_id
         except exception.InvalidFilterRangeValue as e:
             raise webob.exc.HTTPBadRequest(explanation=unicode(e))
         except exception.InvalidSortKey as e:
@@ -161,36 +161,35 @@ class ImagesController(object):
         result['images'] = images
         return result
 
-    def index(self, req, marker=None, limit=None, sort_key='created_at',
-              sort_dir='desc', filters={}):
-        self._enforce(req, 'get_images')
-        filters['deleted'] = False
-        #NOTE(bcwaldon): is_public=True gets public images and those
-        # owned by the authenticated tenant
-        result = {}
-        filters.setdefault('is_public', True)
-        if limit is None:
-            limit = CONF.limit_param_default
-        limit = min(CONF.api_limit_max, limit)
-
-        try:
-            images = self.db_api.image_get_all(req.context, filters=filters,
-                                               marker=marker, limit=limit,
-                                               sort_key=sort_key,
-                                               sort_dir=sort_dir)
-            if len(images) != 0 and len(images) == limit:
-                result['next_marker'] = images[-1]['id']
-        except exception.InvalidFilterRangeValue as e:
-            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        except exception.InvalidSortKey as e:
-            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        except exception.NotFound as e:
-            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        images = [self._normalize_properties(dict(image)) for image in images]
-        result['images'] = [self._append_tags(req.context, image)
-                            for image in images]
-        return result
-
+#    def index(self, req, marker=None, limit=None, sort_key='created_at',
+#              sort_dir='desc', filters={}):
+#        self._enforce(req, 'get_images')
+#        filters['deleted'] = False
+#        #NOTE(bcwaldon): is_public=True gets public images and those
+#        # owned by the authenticated tenant
+#        result = {}
+#        filters.setdefault('is_public', True)
+#        if limit is None:
+#            limit = CONF.limit_param_default
+#        limit = min(CONF.api_limit_max, limit)
+#
+#        try:
+#            images = self.db_api.image_get_all(req.context, filters=filters,
+#                                               marker=marker, limit=limit,
+#                                               sort_key=sort_key,
+#                                               sort_dir=sort_dir)
+#            if len(images) != 0 and len(images) == limit:
+#                result['next_marker'] = images[-1]['id']
+#        except exception.InvalidFilterRangeValue as e:
+#            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+#        except exception.InvalidSortKey as e:
+#            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+#        except exception.NotFound as e:
+#            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
+#        images = [self._normalize_properties(dict(image)) for image in images]
+#        result['images'] = [self._append_tags(req.context, image)
+#                            for image in images]
+#        return result
     def _get_image(self, context, image_id):
         try:
             return self.db_api.image_get(context, image_id)
@@ -596,6 +595,12 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
             base_href = '%s/%s' % (base_href, subcollection)
         return base_href
 
+    def _get_image_href2(self, image, subcollection=''):
+        base_href = '/v2/images/%s' % image.image_id
+        if subcollection:
+            base_href = '%s/%s' % (base_href, subcollection)
+        return base_href
+
     def _get_image_links(self, image):
         return [
             {'rel': 'self', 'href': self._get_image_href(image)},
@@ -640,7 +645,7 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
     def create(self, response, image):
         response.status_int = 201
         self.show(response, image)
-        response.location = self._get_image_href(image)
+        response.location = self._get_image_href2(image)
 
     def show(self, response, image):
         image_view = self._format_image_new(image)
@@ -661,8 +666,8 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         if CONF.show_image_direct_url and image.location is not None: # domain
             image_view['direct_url'] = image.location
         image_view['tags'] = list(image.tags)
-        image_view['self'] = self._get_image_href(image_view)
-        image_view['file'] = self._get_image_href(image_view, 'file')
+        image_view['self'] = self._get_image_href2(image)
+        image_view['file'] = self._get_image_href2(image, 'file')
         image_view['schema'] = '/v2/schemas/image'
         image_view = self.schema.filter(image_view) # domain
         return image_view
