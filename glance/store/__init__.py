@@ -303,3 +303,46 @@ def set_acls(context, location_uri, public=False, read_tenants=[],
                        write_tenants=write_tenants)
     except NotImplementedError:
         LOG.debug(_("Skipping store.set_acls... not implemented."))
+
+
+class ImageRepoDecorator(object):
+
+    def __init__(self, context, store_api, image_repo):
+        self.context = context
+        self.store_api = store_api
+        self.image_repo = image_repo
+
+    def find(self, *args, **kwargs):
+        image = self.image_repo.find(*args, **kwargs)
+        return ImageDecorator(self.context, self.store_api, image)
+
+    def find_many(self, *args, **kwargs):
+        images = self.image_repo.find_many(*args, **kwargs)
+        return [ImageDecorator(self.context, self.store_api, i)
+                for i in images]
+
+    def __getattr__(self, key):
+        return getattr(self.image_repo, key)
+
+
+class ImageDecorator(object):
+
+    def __init__(self, context, store_api, image):
+        self.context = context
+        self.store_api = store_api
+        self.image = image
+
+    def delete(self):
+        self.image.delete()
+        if self.image.location:
+            if CONF.delayed_delete:
+                self.image.status = 'pending_delete'
+                self.store_api.schedule_delayed_delete_from_backend(
+                                self.image.location, self.image.image_id)
+            else:
+                self.store_api.safe_delete_from_backend(self.image.location,
+                                                        self.context,
+                                                        self.image.image_id)
+
+    def __getattr__(self, key):
+        return getattr(self.image, key)

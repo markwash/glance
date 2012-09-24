@@ -1,5 +1,8 @@
 import glance.common.utils
+from glance.common import exception
 from glance.openstack.common import timeutils
+
+#CONF = cfg.CONF
 
 #class AuthDomain(object):
 #
@@ -42,7 +45,7 @@ class ImageFactory(object):
     def _check_readonly(self, kwargs):
         for key in self._readonly_properties:
             if key in kwargs:
-                raise glance.exception.ReadonlyProperty(property=key)
+                raise exception.ReadonlyProperty(property=key)
 
     def _check_unexpected(self, kwargs):
         if len(kwargs) > 0:
@@ -52,7 +55,7 @@ class ImageFactory(object):
     def _check_reserved(self, properties):
         for key in self._reserved_properties:
             if key in properties:
-                raise glance.exception.ReservedProperty(property=key)
+                raise exception.ReservedProperty(property=key)
 
     def new_image(self, image_id=None, name=None, visibility='private',
                   min_disk=0, min_ram=0, protected=False, owner=None,
@@ -76,90 +79,6 @@ class ImageFactory(object):
                      owner=owner, disk_format=disk_format,
                      container_format=container_format,
                      extra_properties=extra_properties, tags=tags)
-
-class ImageRepo(object):
-
-    def __init__(self, context, db_api=None):
-        self.context = context
-        self.db_api = db_api or glance.db.get_api()
-        self.db_api.configure_db()
-
-    def find(self, image_id):
-        db_api_image = dict(self.db_api.image_get(self.context, image_id))
-        tags = self.db_api.image_tag_get_all(self.context, image_id)
-        return self._format_image_from_db(db_api_image, tags)
-
-    def find_many(self, marker=None, limit=None, sort_key=None,
-                  sort_dir=None, filters=None):
-        db_api_images = self.db_api.image_get_all(self.context, filters=filters,
-                                           marker=marker, limit=limit,
-                                           sort_key=sort_key,
-                                           sort_dir=sort_dir)
-        images = []
-        for db_api_image in db_api_images:
-            tags = self.db_api.image_tag_get_all(self.context,
-                                                 db_api_image['id'])
-            images.append(self._format_image_from_db(db_api_image, tags))
-        return images
-
-    def _format_image_from_db(self, db_image, db_tags):
-        if db_image['is_public']:
-            visibility = 'public'
-        else:
-            visibility = 'private'
-        properties = {}
-        for prop in db_image.pop('properties'):
-            # db api requires us to filter deleted
-            if not prop['deleted']:
-                properties[prop['name']] = prop['value']
-        return Image(
-            image_id=db_image['id'],
-            name=db_image['name'],
-            status=db_image['status'],
-            created_at=db_image['created_at'],
-            updated_at=db_image['updated_at'],
-            visibility=visibility,
-            min_disk=db_image['min_disk'],
-            min_ram=db_image['min_ram'],
-            protected=db_image['protected'],
-            location=db_image['location'],
-            checksum=db_image['checksum'],
-            owner=db_image['owner'],
-            disk_format=db_image['disk_format'],
-            container_format=db_image['container_format'],
-            size=db_image['size'],
-            extra_properties=properties,
-            tags=db_tags
-        )
-
-    def add(self, image):
-        image_values = {
-            'id': image.image_id,
-            'name': image.name,
-            'status': image.status,
-            'created_at': image.created_at,
-            'updated_at': image.updated_at,
-            'min_disk': image.min_disk,
-            'min_ram': image.min_ram,
-            'protected': image.protected,
-            'location': image.location,
-            'checksum': image.checksum,
-            'owner': image.owner,
-            'disk_format': image.disk_format,
-            'container_format': image.container_format,
-            'size': image.size,
-            'is_public': image.visibility == 'public',
-            'properties': image.extra_properties,
-        }
-        new_values = self.db_api.image_create(self.context, image_values)
-        self.db_api.image_tag_set_all(self.context,
-                                      image.image_id, image.tags)
-        image.created_at = new_values['created_at']
-        image.updated_at = new_values['updated_at']
-        return image
-
-    def save(self, image):
-        pass
 
 class Image(object):
 
@@ -190,3 +109,7 @@ class Image(object):
             tags = []
         self.tags = set(tags)
 
+    def delete(self):
+        if self.protected:
+            raise exception.ProtectedImageDelete(image_id=self.image_id)
+        self.status = 'deleted'

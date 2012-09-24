@@ -362,6 +362,7 @@ def image_destroy(context, image_id):
     try:
         DATA['images'][image_id]['deleted'] = True
         DATA['images'][image_id]['deleted_at'] = datetime.datetime.utcnow()
+        return copy.deepcopy(DATA['images'][image_id])
     except KeyError:
         raise exception.NotFound()
 

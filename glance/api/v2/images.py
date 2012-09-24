@@ -28,6 +28,7 @@ from glance.common import utils
 from glance.common import wsgi
 import glance.db
 import glance.domain
+import glance.gateway
 import glance.notifier
 from glance.openstack.common import cfg
 import glance.openstack.common.log as logging
@@ -50,6 +51,8 @@ class ImagesController(object):
         self.notifier = notifier or glance.notifier.Notifier()
         self.store_api = store_api or glance.store
         self.store_api.create_stores()
+        self.image_repo_factory = glance.gateway.ImageRepoFactory(
+                self.db_api, self.store_api)
 
     def _enforce(self, req, action):
         """Authorize an action against our policies"""
@@ -125,11 +128,11 @@ class ImagesController(object):
                 exception.ReservedProperty) as e:
             raise webob.exc.HTTPForbidden(explanation=unicode(e))
 
-        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
+        image_repo = self.image_repo_factory.get_repo(req.context)
         image_repo.add(image)
         # these are going to depend on other changes
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
-        #self.notifier.info('image.update', image)
+        self.notifier.info('image.update', image)
         return image
 
     def index(self, req, marker=None, limit=None, sort_key='created_at',
@@ -145,7 +148,7 @@ class ImagesController(object):
             limit = CONF.limit_param_default
         limit = min(CONF.api_limit_max, limit)
 
-        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
+        image_repo = self.image_repo_factory.get_repo(req.context)
         try:
             images = image_repo.find_many(marker=marker, limit=limit,
                                           sort_key=sort_key, sort_dir=sort_dir,
@@ -198,7 +201,7 @@ class ImagesController(object):
 
     def show(self, req, image_id):
         self._enforce(req, 'get_image') # maybe next on the list to remove
-        image_repo = glance.domain.ImageRepo(req.context, self.db_api)
+        image_repo = self.image_repo_factory.get_repo(req.context)
         try:
             return image_repo.find(image_id)
         except (exception.NotFound, exception.Forbidden):
@@ -334,6 +337,25 @@ class ImagesController(object):
         try:
             self.db_api.image_update(req.context, image_id, {'status': status})
             self.db_api.image_destroy(req.context, image_id)
+        except (exception.NotFound, exception.Forbidden):
+            msg = ("Failed to find image %(image_id)s to delete" % locals())
+            LOG.info(msg)
+            raise webob.exc.HTTPNotFound()
+        else:
+            self.notifier.info('image.delete', image)
+
+    @utils.mutating
+    def delete(self, req, image_id):
+        self._enforce(req, 'delete_image')
+        image_repo = self.image_repo_factory.get_repo(req.context)
+        try:
+            image = image_repo.find(image_id)
+            image.delete()
+            image_repo.remove(image)
+        except exception.ProtectedImageDelete:
+            msg = _("Unable to delete as image %(image_id)s is protected"
+                    % {'image_id': image.image_id})
+            raise webob.exc.HTTPForbidden(explanation=msg)
         except (exception.NotFound, exception.Forbidden):
             msg = ("Failed to find image %(image_id)s to delete" % locals())
             LOG.info(msg)

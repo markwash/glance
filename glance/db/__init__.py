@@ -17,6 +17,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import glance.domain
 from glance.openstack.common import cfg
 from glance.openstack.common import importutils
 
@@ -56,3 +57,102 @@ IMAGE_ATTRS = BASE_MODEL_ATTRS | set(['name', 'status', 'size',
                                       'min_disk', 'min_ram', 'is_public',
                                       'location', 'checksum', 'owner',
                                       'protected'])
+
+
+class ImageRepo(object):
+
+    def __init__(self, context, db_api):
+        self.context = context
+        self.db_api = db_api
+
+    def find(self, image_id):
+        db_api_image = dict(self.db_api.image_get(self.context, image_id))
+        tags = self.db_api.image_tag_get_all(self.context, image_id)
+        image = self._format_image_from_db(db_api_image, tags)
+        return image
+
+    def find_many(self, marker=None, limit=None, sort_key=None,
+                  sort_dir=None, filters=None):
+        db_api_images = self.db_api.image_get_all(self.context, filters=filters,
+                                           marker=marker, limit=limit,
+                                           sort_key=sort_key,
+                                           sort_dir=sort_dir)
+        images = []
+        for db_api_image in db_api_images:
+            tags = self.db_api.image_tag_get_all(self.context,
+                                                 db_api_image['id'])
+            image = self._format_image_from_db(dict(db_api_image), tags)
+            images.append(image)
+        return images
+
+    def _format_image_from_db(self, db_image, db_tags):
+        if db_image['is_public']:
+            visibility = 'public'
+        else:
+            visibility = 'private'
+        properties = {}
+        for prop in db_image.pop('properties'):
+            # db api requires us to filter deleted
+            if not prop['deleted']:
+                properties[prop['name']] = prop['value']
+        return glance.domain.Image(
+            image_id=db_image['id'],
+            name=db_image['name'],
+            status=db_image['status'],
+            created_at=db_image['created_at'],
+            updated_at=db_image['updated_at'],
+            visibility=visibility,
+            min_disk=db_image['min_disk'],
+            min_ram=db_image['min_ram'],
+            protected=db_image['protected'],
+            location=db_image['location'],
+            checksum=db_image['checksum'],
+            owner=db_image['owner'],
+            disk_format=db_image['disk_format'],
+            container_format=db_image['container_format'],
+            size=db_image['size'],
+            extra_properties=properties,
+            tags=db_tags
+        )
+
+    def _format_image_to_db(self, image):
+        return {
+            'id': image.image_id,
+            'name': image.name,
+            'status': image.status,
+            'created_at': image.created_at,
+            'updated_at': image.updated_at,
+            'min_disk': image.min_disk,
+            'min_ram': image.min_ram,
+            'protected': image.protected,
+            'location': image.location,
+            'checksum': image.checksum,
+            'owner': image.owner,
+            'disk_format': image.disk_format,
+            'container_format': image.container_format,
+            'size': image.size,
+            'is_public': image.visibility == 'public',
+            'properties': image.extra_properties,
+        }
+
+    def add(self, image):
+        image_values = self._format_image_to_db(image)
+        new_values = self.db_api.image_create(self.context, image_values)
+        self.db_api.image_tag_set_all(self.context,
+                                      image.image_id, image.tags)
+        image.created_at = new_values['created_at']
+        image.updated_at = new_values['updated_at']
+
+    def save(self, image):
+        image_values = self._format_image_to_db(image)
+        new_values = self.db_api.image_update(self.context, image.image_id,
+                                              image_values)
+        image.updated_at = new_values['updated_at']
+
+    def remove(self, image):
+        image_values = self._format_image_to_db(image)
+        self.db_api.image_update(self.context, image.image_id, image_values)
+        # NOTE(markwash): don't update tags?
+        new_values = self.db_api.image_destroy(self.context, image.image_id)
+        image.updated_at = new_values['updated_at']
+

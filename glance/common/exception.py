@@ -108,6 +108,10 @@ class ForbiddenPublicImage(Forbidden):
     message = _("You are not authorized to complete this action.")
 
 
+class ProtectedImageDelete(Forbidden):
+    message = _("Image %(image_id)s is protected and cannot be deleted.")
+
+
 #NOTE(bcwaldon): here for backwards-compatability, need to deprecate.
 class NotAuthorized(Forbidden):
     message = _("You are not authorized to complete this action.")
