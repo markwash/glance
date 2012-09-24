@@ -406,7 +406,7 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_update_replace_base_attribute(self):
         self.db.image_update(None, UUID1, {'properties': {'foo': 'bar'}})
         request = unit_test_utils.get_fake_request()
-        changes = [{'op': 'replace', 'path': ['name'], 'value': 'fedora'}]
+        changes = [{'op': 'replace', 'path': 'name', 'value': 'fedora'}]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
         self.assertEqual(output['name'], 'fedora')
@@ -416,7 +416,7 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_update_replace_tags(self):
         request = unit_test_utils.get_fake_request()
         changes = [
-            {'op': 'replace', 'path': ['tags'], 'value': ['king', 'kong']},
+            {'op': 'replace', 'path': 'tags', 'value': ['king', 'kong']},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
@@ -433,7 +433,7 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(output.extra_properties['snitch'], 'golden')
 
         changes = [
-            {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
+            {'op': 'replace', 'path': 'foo', 'value': 'baz'},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
@@ -445,7 +445,7 @@ class TestImagesController(test_utils.BaseTestCase):
         request = unit_test_utils.get_fake_request()
 
         changes = [
-            {'op': 'add', 'path': ['properties', 'murphy'], 'value': 'brown'},
+            {'op': 'add', 'path': 'murphy', 'value': 'brown'},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
@@ -462,7 +462,7 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(output.extra_properties['snitch'], 'golden')
 
         changes = [
-            {'op': 'remove', 'path': ['properties', 'snitch']},
+            {'op': 'remove', 'path': 'snitch'},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
@@ -475,10 +475,10 @@ class TestImagesController(test_utils.BaseTestCase):
         self.db.image_update(None, UUID1, {'properties': properties})
 
         changes = [
-            {'op': 'replace', 'path': ['min_ram'], 'value': 128},
-            {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
-            {'op': 'remove', 'path': ['properties', 'snitch']},
-            {'op': 'add', 'path': ['properties', 'kb'], 'value': 'dvorak'},
+            {'op': 'replace', 'path': 'min_ram', 'value': 128},
+            {'op': 'replace', 'path': 'foo', 'value': 'baz'},
+            {'op': 'remove', 'path': 'snitch'},
+            {'op': 'add', 'path': 'kb', 'value': 'dvorak'},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output['id'], UUID1)
@@ -492,7 +492,7 @@ class TestImagesController(test_utils.BaseTestCase):
         request = unit_test_utils.get_fake_request()
 
         changes = [
-            {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'baz'},
+            {'op': 'replace', 'path': 'foo', 'value': 'baz'},
         ]
         self.assertRaises(webob.exc.HTTPConflict,
                           self.controller.update, request, UUID1, changes)
@@ -506,7 +506,7 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(output.extra_properties['foo'], 'bar')
 
         changes = [
-            {'op': 'add', 'path': ['properties', 'foo'], 'value': 'baz'},
+            {'op': 'add', 'path': 'foo', 'value': 'baz'},
         ]
         self.assertRaises(webob.exc.HTTPConflict,
                           self.controller.update, request, UUID1, changes)
@@ -515,7 +515,7 @@ class TestImagesController(test_utils.BaseTestCase):
         request = unit_test_utils.get_fake_request()
 
         changes = [
-            {'op': 'remove', 'path': ['properties', 'foo']},
+            {'op': 'remove', 'path': 'foo'},
         ]
         self.assertRaises(webob.exc.HTTPConflict,
                           self.controller.update, request, UUID1, changes)
@@ -523,12 +523,11 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_update_assertion_errors(self):
         request = unit_test_utils.get_fake_request()
         changes = [
-            {'op': 'add', 'path': ['properties', 'a', 'b'], 'value': 'c'},
-            {'op': 'add', 'path': ['prolilies', 'foo'], 'value': 'bar'},
+            {'op': 'add', 'path': ['a', 'b'], 'value': 'c'},
             {'op': 'replace', 'path': [], 'value': 'stuff'},
-            {'op': 'add', 'path': ['name'], 'value': 'Beulah'},
-            {'op': 'remove', 'path': ['name']},
-            {'op': 'test', 'path': ['properties', 'options'], 'value': 'puts'},
+            {'op': 'add', 'path': 'name', 'value': 'Beulah'},
+            {'op': 'remove', 'path': 'name'},
+            {'op': 'test', 'path': 'options', 'value': 'puts'},
         ]
         for change in changes:
             try:
@@ -541,7 +540,7 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_update_duplicate_tags(self):
         request = unit_test_utils.get_fake_request()
         changes = [
-            {'op': 'replace', 'path': ['tags'], 'value': ['ping', 'ping']},
+            {'op': 'replace', 'path': 'tags', 'value': ['ping', 'ping']},
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(['ping'], output['tags'])
@@ -843,11 +842,11 @@ class TestImagesDeserializer(test_utils.BaseTestCase):
         request.body = json.dumps(body)
         output = self.deserializer.update(request)
         expected = {'changes': [
-            {'op': 'replace', 'path': ['name'], 'value': 'fedora'},
-            {'op': 'replace', 'path': ['tags'], 'value': ['king', 'kong']},
-            {'op': 'replace', 'path': ['properties', 'foo'], 'value': 'bar'},
-            {'op': 'add', 'path': ['properties', 'bebim'], 'value': 'bap'},
-            {'op': 'remove', 'path': ['properties', 'sparks']},
+            {'op': 'replace', 'path': 'name', 'value': 'fedora'},
+            {'op': 'replace', 'path': 'tags', 'value': ['king', 'kong']},
+            {'op': 'replace', 'path': 'foo', 'value': 'bar'},
+            {'op': 'add', 'path': 'bebim', 'value': 'bap'},
+            {'op': 'remove', 'path': 'sparks'},
         ]}
         self.assertEquals(output, expected)
 
@@ -857,7 +856,6 @@ class TestImagesDeserializer(test_utils.BaseTestCase):
             {'replace': '/id', 'value': UUID1},
             {'replace': '/name', 'value': 'fedora'},
             {'replace': '/visibility', 'value': 'public'},
-            {'replace': '/visibility', 'value': 'private'},
             {'replace': '/tags', 'value': ['king', 'kong']},
             {'replace': '/protected', 'value': True},
             {'replace': '/container_format', 'value': 'bare'},
@@ -868,16 +866,15 @@ class TestImagesDeserializer(test_utils.BaseTestCase):
         request.body = json.dumps(body)
         output = self.deserializer.update(request)
         expected = {'changes': [
-            {'op': 'replace', 'path': ['id'], 'value': UUID1},
-            {'op': 'replace', 'path': ['name'], 'value': 'fedora'},
-            {'op': 'replace', 'path': ['is_public'], 'value': True},
-            {'op': 'replace', 'path': ['is_public'], 'value': False},
-            {'op': 'replace', 'path': ['tags'], 'value': ['king', 'kong']},
-            {'op': 'replace', 'path': ['protected'], 'value': True},
-            {'op': 'replace', 'path': ['container_format'], 'value': 'bare'},
-            {'op': 'replace', 'path': ['disk_format'], 'value': 'raw'},
-            {'op': 'replace', 'path': ['min_ram'], 'value': 128},
-            {'op': 'replace', 'path': ['min_disk'], 'value': 10},
+            {'op': 'replace', 'path': 'id', 'value': UUID1},
+            {'op': 'replace', 'path': 'name', 'value': 'fedora'},
+            {'op': 'replace', 'path': 'visibility', 'value': 'public'},
+            {'op': 'replace', 'path': 'tags', 'value': ['king', 'kong']},
+            {'op': 'replace', 'path': 'protected', 'value': True},
+            {'op': 'replace', 'path': 'container_format', 'value': 'bare'},
+            {'op': 'replace', 'path': 'disk_format', 'value': 'raw'},
+            {'op': 'replace', 'path': 'min_ram', 'value': 128},
+            {'op': 'replace', 'path': 'min_disk', 'value': 10},
         ]}
         self.assertEquals(output, expected)
 
@@ -958,7 +955,7 @@ class TestImagesDeserializer(test_utils.BaseTestCase):
             body = [{'replace': '%s' % encoded, 'value': 'dummy'}]
             request.body = json.dumps(body)
             output = self.deserializer.update(request)
-            self.assertEqual(output['changes'][0]['path'][1], decoded)
+            self.assertEqual(output['changes'][0]['path'], decoded)
 
     def test_update_multiple_operations(self):
         request = self._get_fake_patch_request()
@@ -1129,7 +1126,7 @@ class TestImagesDeserializerWithExtendedSchema(test_utils.BaseTestCase):
         request.body = json.dumps([{'add': '/pants', 'value': 'off'}])
         output = self.deserializer.update(request)
         expected = {'changes': [
-            {'op': 'add', 'path': ['properties', 'pants'], 'value': 'off'},
+            {'op': 'add', 'path': 'pants', 'value': 'off'},
         ]}
         self.assertEqual(expected, output)
 
@@ -1188,7 +1185,7 @@ class TestImagesDeserializerWithAdditionalProperties(test_utils.BaseTestCase):
         request.content_type = 'application/openstack-images-v2.0-json-patch'
         request.body = json.dumps([{'add': '/foo', 'value': 'bar'}])
         output = self.deserializer.update(request)
-        change = {'op': 'add', 'path': ['properties', 'foo'], 'value': 'bar'}
+        change = {'op': 'add', 'path': 'foo', 'value': 'bar'}
         self.assertEqual(output, {'changes': [change]})
 
 

@@ -210,6 +210,61 @@ class ImagesController(object):
     @utils.mutating
     def update(self, req, image_id, changes):
         self._enforce(req, 'modify_image')
+        image_repo = self.image_repo_factory.get_repo(req.context)
+        try:
+            image = image_repo.find(image_id)
+        except (exception.NotFound, exception.Forbidden):
+            msg = ("Failed to find image %(image_id)s to update" % locals())
+            LOG.info(msg)
+            raise webob.exc.HTTPNotFound(explanation=msg)
+
+        for change in changes:
+            change_method_name = '_do_%s' % change['op']
+            assert hasattr(self, change_method_name)
+            change_method = getattr(self, change_method_name)
+            change_method(image, change)
+
+        try:
+            image_repo.save(image)
+        except (exception.NotFound, exception.Forbidden):
+            raise webob.exc.HTTPNotFound()
+
+        v2.update_image_read_acl(req, self.store_api, self.db_api, image)
+        self.notifier.info('image.update', image)
+
+        return image
+
+    def _do_replace(self, image, change):
+        path = change['path']
+        if hasattr(image, path):
+            setattr(image, path, change['value'])
+        elif path in image.extra_properties:
+            image.extra_properties[path] = change['value']
+        else:
+            msg = _("Property %s does not exist.")
+            raise webob.exc.HTTPConflict(msg % path)
+            
+    def _do_add(self, image, change):
+        path = change['path']
+        if hasattr(image, path) or path in image.extra_properties:
+            msg = _("Property %s already present.")
+            raise webob.exc.HTTPConflict(msg % path)
+        image.extra_properties[path] = change['value']
+
+    def _do_remove(self, image, change):
+        path = change['path']
+        if hasattr(image, path):
+            msg = _("Property %s may not be removed.")
+            raise webob.exc.HTTPForbidden(msg % path)
+        elif path in image.extra_properties:
+            del image.extra_properties[path]
+        else:
+            msg = _("Property %s does not exist.")
+            raise webob.exc.HTTPConflict(msg % path)
+
+    @utils.mutating
+    def oldupdate(self, req, image_id, changes):
+        self._enforce(req, 'modify_image')
         context = req.context
         try:
             image = self.db_api.image_get(context, image_id)
@@ -476,10 +531,7 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
             msg = "Attribute \'%s\' is reserved." % key
             raise webob.exc.HTTPForbidden(explanation=unicode(msg))
 
-        # For image properties, we need to put "properties" at the beginning
-        if key not in self._base_properties:
-            return ['properties', key]
-        return [key]
+        return key
 
     def _decode_json_pointer(self, pointer):
         """ Parse a json pointer.
@@ -521,7 +573,7 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
     def _validate_change(self, change):
         if change['op'] == 'delete':
             return
-        partial_image = {change['path'][-1]: change['value']}
+        partial_image = {change['path']: change['value']}
         try:
             self.schema.validate(partial_image)
         except exception.InvalidObject as e:
@@ -549,9 +601,6 @@ class RequestDeserializer(wsgi.JSONRequestDeserializer):
             if not op == 'remove':
                 change['value'] = self._get_change_value(raw_change, op)
                 self._validate_change(change)
-                if change['path'] == ['visibility']:
-                    change['path'] = ['is_public']
-                    change['value'] = change['value'] == 'public'
             changes.append(change)
         return {'changes': changes}
 
