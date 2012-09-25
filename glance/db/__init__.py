@@ -121,7 +121,6 @@ class ImageRepo(object):
             'name': image.name,
             'status': image.status,
             'created_at': image.created_at,
-            'updated_at': image.updated_at,
             'min_disk': image.min_disk,
             'min_ram': image.min_ram,
             'protected': image.protected,
@@ -145,9 +144,13 @@ class ImageRepo(object):
 
     def save(self, image):
         image_values = self._format_image_to_db(image)
+        print image.updated_at
         new_values = self.db_api.image_update(self.context, image.image_id,
                                               image_values)
+        
+        print new_values
         image.updated_at = new_values['updated_at']
+        print image.updated_at
 
     def remove(self, image):
         image_values = self._format_image_to_db(image)

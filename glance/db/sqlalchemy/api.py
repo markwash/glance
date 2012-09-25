@@ -559,6 +559,7 @@ def _image_update(context, values, image_id, purge_props=False):
     :param values: A dict of attributes to set
     :param image_id: If None, create the image, otherwise, find and update it
     """
+    print '_image_update %s' % image_id
     session = get_session()
     with session.begin():
 
@@ -598,7 +599,9 @@ def _image_update(context, values, image_id, purge_props=False):
             _drop_protected_attrs(models.Image, values)
             #NOTE(iccha-sethi): updated_at must be explicitly set in case
             #                   only ImageProperty table was modifited
+            print 'INDB %s' % values['updated_at']
             values['updated_at'] = timeutils.utcnow()
+            print 'INDB %s' % values['updated_at']
         image_ref.update(values)
 
         # Validate the attributes before we go any further. From my

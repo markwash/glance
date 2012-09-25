@@ -222,21 +222,23 @@ class ImagesController(object):
             change_method_name = '_do_%s' % change['op']
             assert hasattr(self, change_method_name)
             change_method = getattr(self, change_method_name)
-            change_method(image, change)
+            change_method(req, image, change)
 
         try:
             image_repo.save(image)
         except (exception.NotFound, exception.Forbidden):
             raise webob.exc.HTTPNotFound()
 
-        v2.update_image_read_acl(req, self.store_api, self.db_api, image)
+        #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
         self.notifier.info('image.update', image)
 
         return image
 
-    def _do_replace(self, image, change):
+    def _do_replace(self, req, image, change):
         path = change['path']
         if hasattr(image, path):
+            if path == 'visibility' and change['value'] == 'public':
+                self._enforce(req, 'publicize_image')
             setattr(image, path, change['value'])
         elif path in image.extra_properties:
             image.extra_properties[path] = change['value']
@@ -244,14 +246,14 @@ class ImagesController(object):
             msg = _("Property %s does not exist.")
             raise webob.exc.HTTPConflict(msg % path)
             
-    def _do_add(self, image, change):
+    def _do_add(self, req, image, change):
         path = change['path']
         if hasattr(image, path) or path in image.extra_properties:
             msg = _("Property %s already present.")
             raise webob.exc.HTTPConflict(msg % path)
         image.extra_properties[path] = change['value']
 
-    def _do_remove(self, image, change):
+    def _do_remove(self, req, image, change):
         path = change['path']
         if hasattr(image, path):
             msg = _("Property %s may not be removed.")

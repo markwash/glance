@@ -419,9 +419,9 @@ class TestImagesController(test_utils.BaseTestCase):
             {'op': 'replace', 'path': 'tags', 'value': ['king', 'kong']},
         ]
         output = self.controller.update(request, UUID1, changes)
-        self.assertEqual(output['id'], UUID1)
-        self.assertEqual(output['tags'], ['king', 'kong'])
-        self.assertNotEqual(output['created_at'], output['updated_at'])
+        self.assertEqual(output.image_id, UUID1)
+        self.assertEqual(output.tags, ['king', 'kong'])
+        self.assertNotEqual(output.created_at, output.updated_at)
 
     def test_update_replace_property(self):
         request = unit_test_utils.get_fake_request()
@@ -672,7 +672,7 @@ class TestImagesControllerPolicies(base.IsolatedUnitTest):
         rules = {"modify_image": False}
         self.policy.set_rules(rules)
         request = unit_test_utils.get_fake_request()
-        changes = [{'op': 'replace', 'path': ['name'], 'value': 'image-2'}]
+        changes = [{'op': 'replace', 'path': 'name', 'value': 'image-2'}]
         self.assertRaises(webob.exc.HTTPForbidden, self.controller.update,
                           request, UUID1, changes)
 
@@ -680,7 +680,7 @@ class TestImagesControllerPolicies(base.IsolatedUnitTest):
         rules = {"publicize_image": False}
         self.policy.set_rules(rules)
         request = unit_test_utils.get_fake_request()
-        changes = [{'op': 'replace', 'path': ['is_public'], 'value': True}]
+        changes = [{'op': 'replace', 'path': 'visibility', 'value': 'public'}]
         self.assertRaises(webob.exc.HTTPForbidden, self.controller.update,
                           request, UUID1, changes)
 
@@ -688,9 +688,9 @@ class TestImagesControllerPolicies(base.IsolatedUnitTest):
         rules = {"publicize_image": False}
         self.policy.set_rules(rules)
         request = unit_test_utils.get_fake_request()
-        changes = [{'op': 'replace', 'path': ['is_public'], 'value': False}]
+        changes = [{'op': 'replace', 'path': 'visibility', 'value': 'private'}]
         output = self.controller.update(request, UUID1, changes)
-        self.assertFalse(output['is_public'])
+        self.assertEqual(output.visibility, 'private')
 
     def test_delete_unauthorized(self):
         rules = {"delete_image": False}
