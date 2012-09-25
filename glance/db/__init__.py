@@ -144,17 +144,14 @@ class ImageRepo(object):
 
     def save(self, image):
         image_values = self._format_image_to_db(image)
-        print image.updated_at
         new_values = self.db_api.image_update(self.context, image.image_id,
-                                              image_values)
-        
-        print new_values
+                                              image_values, purge_props=True)
         image.updated_at = new_values['updated_at']
-        print image.updated_at
 
     def remove(self, image):
         image_values = self._format_image_to_db(image)
-        self.db_api.image_update(self.context, image.image_id, image_values)
+        self.db_api.image_update(self.context, image.image_id,
+                                 image_values, purge_props=True)
         # NOTE(markwash): don't update tags?
         new_values = self.db_api.image_destroy(self.context, image.image_id)
         image.updated_at = new_values['updated_at']

@@ -436,10 +436,10 @@ class TestImagesController(test_utils.BaseTestCase):
             {'op': 'replace', 'path': 'foo', 'value': 'baz'},
         ]
         output = self.controller.update(request, UUID1, changes)
-        self.assertEqual(output['id'], UUID1)
-        self.assertEqual(output['properties']['foo'], 'baz')
-        self.assertEqual(output['properties']['snitch'], 'golden')
-        self.assertNotEqual(output['created_at'], output['updated_at'])
+        self.assertEqual(output.image_id, UUID1)
+        self.assertEqual(output.extra_properties['foo'], 'baz')
+        self.assertEqual(output.extra_properties['snitch'], 'golden')
+        self.assertNotEqual(output.created_at, output.updated_at)
 
     def test_update_add_property(self):
         request = unit_test_utils.get_fake_request()
