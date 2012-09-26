@@ -388,9 +388,9 @@ class TestImagesController(test_utils.BaseTestCase):
     def test_update_no_changes(self):
         request = unit_test_utils.get_fake_request()
         output = self.controller.update(request, UUID1, changes=[])
-        self.assertEqual(output['id'], UUID1)
-        self.assertEqual(output['created_at'], output['updated_at'])
-        self.assertTrue('tags' in output)
+        self.assertEqual(output.image_id, UUID1)
+        self.assertEqual(output.created_at, output.updated_at)
+        self.assertEqual(output.tags, set(['ping', 'pong']))
         output_log = self.notifier.get_log()
         expected_log = {'notification_type': "INFO",
                         'event_type': "image.update",
@@ -420,7 +420,7 @@ class TestImagesController(test_utils.BaseTestCase):
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output.image_id, UUID1)
-        self.assertEqual(output.tags, ['king', 'kong'])
+        self.assertEqual(output.tags, set(['king', 'kong']))
         self.assertNotEqual(output.created_at, output.updated_at)
 
     def test_update_replace_property(self):
@@ -452,6 +452,20 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(output.extra_properties, {'murphy': 'brown'})
         self.assertNotEqual(output.created_at, output.updated_at)
 
+    def test_update_add_base_property(self):
+        self.db.image_update(None, UUID1, {'properties': {'foo': 'bar'}})
+        request = unit_test_utils.get_fake_request()
+        changes = [{'op': 'add', 'path': 'name', 'value': 'fedora'}]
+        self.assertRaises(webob.exc.HTTPConflict, self.controller.update,
+                          request, UUID1, changes)
+
+    def test_update_remove_base_property(self):
+        self.db.image_update(None, UUID1, {'properties': {'foo': 'bar'}})
+        request = unit_test_utils.get_fake_request()
+        changes = [{'op': 'remove', 'path': 'name'}]
+        self.assertRaises(webob.exc.HTTPForbidden, self.controller.update,
+                          request, UUID1, changes)
+
     def test_update_remove_property(self):
         request = unit_test_utils.get_fake_request()
         properties = {'foo': 'bar', 'snitch': 'golden'}
@@ -467,7 +481,7 @@ class TestImagesController(test_utils.BaseTestCase):
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output.image_id, UUID1)
         self.assertEqual(output.extra_properties, {'foo': 'bar'})
-        self.assertNotEqual(output.created_at, output['updated_at'])
+        self.assertNotEqual(output.created_at, output.updated_at)
 
     def test_update_multiple_changes(self):
         request = unit_test_utils.get_fake_request()
@@ -482,11 +496,12 @@ class TestImagesController(test_utils.BaseTestCase):
         ]
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(output.image_id, UUID1)
-        self.assertEqual(output['min_ram'], 128)
+        self.assertEqual(output.min_ram, 128)
+        print output.extra_properties
         self.assertEqual(len(output.extra_properties), 2)
         self.assertEqual(output.extra_properties['foo'], 'baz')
         self.assertEqual(output.extra_properties['kb'], 'dvorak')
-        self.assertNotEqual(output.extra_properties['created_at'], output['updated_at'])
+        self.assertNotEqual(output.created_at, output.updated_at)
 
     def test_update_replace_missing_property(self):
         request = unit_test_utils.get_fake_request()
@@ -520,22 +535,15 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertRaises(webob.exc.HTTPConflict,
                           self.controller.update, request, UUID1, changes)
 
-    def test_update_assertion_errors(self):
+    def test_update_invalid_operation(self):
         request = unit_test_utils.get_fake_request()
-        changes = [
-            {'op': 'add', 'path': ['a', 'b'], 'value': 'c'},
-            {'op': 'replace', 'path': [], 'value': 'stuff'},
-            {'op': 'add', 'path': 'name', 'value': 'Beulah'},
-            {'op': 'remove', 'path': 'name'},
-            {'op': 'test', 'path': 'options', 'value': 'puts'},
-        ]
-        for change in changes:
-            try:
-                self.controller.update(request, UUID1, [change])
-            except AssertionError:
-                pass  # AssertionError is the desired behavior
-            else:
-                self.fail('Failed to raise AssertionError on %s' % change)
+        change = {'op': 'test', 'path': 'options', 'value': 'puts'}
+        try:
+            self.controller.update(request, UUID1, [change])
+        except AssertionError:
+            pass  # AssertionError is the desired behavior
+        else:
+            self.fail('Failed to raise AssertionError on %s' % change)
 
     def test_update_duplicate_tags(self):
         request = unit_test_utils.get_fake_request()
@@ -543,7 +551,7 @@ class TestImagesController(test_utils.BaseTestCase):
             {'op': 'replace', 'path': 'tags', 'value': ['ping', 'ping']},
         ]
         output = self.controller.update(request, UUID1, changes)
-        self.assertEqual(['ping'], output['tags'])
+        self.assertEqual(set(['ping']), output.tags)
         output_log = self.notifier.get_log()
         expected_log = {'notification_type': "INFO",
                         'event_type': "image.update",
@@ -1384,7 +1392,7 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             'status': 'queued',
             'visibility': 'public',
             'protected': False,
-            'tags': ['one', 'two'],
+            'tags': set(['one', 'two']),
             'size': 1024,
             'checksum': 'ca425b88f047ce8ec45ee90e813ada91',
             'container_format': 'ami',
@@ -1398,8 +1406,10 @@ class TestImagesSerializer(test_utils.BaseTestCase):
             'schema': '/v2/schemas/image',
         }
         response = webob.Response()
-        self.serializer.update(response, self.fixtures[0])
-        self.assertEqual(expected, json.loads(response.body))
+        self.serializer.update(response, self.fixtures2[0])
+        actual = json.loads(response.body)
+        actual['tags'] = set(actual['tags'])
+        self.assertEqual(expected, actual)
         self.assertEqual('application/json', response.content_type)
 
 
@@ -1539,7 +1549,7 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
             u'status': u'queued',
             u'visibility': u'public',
             u'protected': False,
-            u'tags': [u'\u2160', u'\u2161'],
+            u'tags': set([u'\u2160', u'\u2161']),
             u'size': 1024,
             u'checksum': u'ca425b88f047ce8ec45ee90e813ada91',
             u'container_format': u'ami',
@@ -1555,8 +1565,10 @@ class TestImagesSerializerWithUnicode(test_utils.BaseTestCase):
             u'dispos\u00E9': u'f\u00E2ch\u00E9',
         }
         response = webob.Response()
-        self.serializer.update(response, self.fixtures[0])
-        self.assertEqual(expected, json.loads(response.body))
+        self.serializer.update(response, self.fixtures2[0])
+        actual = json.loads(response.body)
+        actual['tags'] = set(actual['tags'])
+        self.assertEqual(expected, actual)
         self.assertEqual('application/json', response.content_type)
 
 

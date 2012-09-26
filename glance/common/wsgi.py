@@ -534,7 +534,6 @@ class Resource(object):
 
         # return unserializable result (typically a webob exc)
         except Exception:
-            raise
             return action_result
 
     def dispatch(self, obj, action, *args, **kwargs):

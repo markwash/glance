@@ -107,7 +107,15 @@ class Image(object):
         self.extra_properties = extra_properties or {}
         if tags is None:
             tags = []
-        self.tags = set(tags)
+        self.tags = tags
+
+    @property
+    def tags(self):
+        return self._tags
+
+    @tags.setter
+    def tags(self, value):
+        self._tags = set(value)
 
     def delete(self):
         if self.protected:

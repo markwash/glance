@@ -224,10 +224,11 @@ class ImagesController(object):
             change_method = getattr(self, change_method_name)
             change_method(req, image, change)
 
-        try:
-            image_repo.save(image)
-        except (exception.NotFound, exception.Forbidden):
-            raise webob.exc.HTTPNotFound()
+        if len(changes) > 0:
+            try:
+                image_repo.save(image)
+            except (exception.NotFound, exception.Forbidden):
+                raise webob.exc.HTTPNotFound()
 
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
         self.notifier.info('image.update', image)
@@ -236,10 +237,11 @@ class ImagesController(object):
 
     def _do_replace(self, req, image, change):
         path = change['path']
+        value = change['value']
         if hasattr(image, path):
-            if path == 'visibility' and change['value'] == 'public':
+            if path == 'visibility' and value == 'public':
                 self._enforce(req, 'publicize_image')
-            setattr(image, path, change['value'])
+            setattr(image, path, value)
         elif path in image.extra_properties:
             image.extra_properties[path] = change['value']
         else:
@@ -248,10 +250,11 @@ class ImagesController(object):
             
     def _do_add(self, req, image, change):
         path = change['path']
+        value = change['value']
         if hasattr(image, path) or path in image.extra_properties:
             msg = _("Property %s already present.")
             raise webob.exc.HTTPConflict(msg % path)
-        image.extra_properties[path] = change['value']
+        image.extra_properties[path] = value
 
     def _do_remove(self, req, image, change):
         path = change['path']
@@ -746,7 +749,8 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         return image_view
 
     def update(self, response, image):
-        body = json.dumps(self._format_image(image), ensure_ascii=False)
+        image_view = self._format_image_new(image)
+        body = json.dumps(image_view, ensure_ascii=False)
         response.unicode_body = unicode(body)
         response.content_type = 'application/json'
 

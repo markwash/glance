@@ -407,3 +407,60 @@ def mutating(func):
                                     content_type="text/plain")
         return func(self, req, *args, **kwargs)
     return wrapped
+
+
+class ClassDecoratorHelper(object):
+    def __init__(self, decorator, base):
+        object.__setattr__(self, 'decorator', decorator)
+        object.__setattr__(self, 'base', base) 
+
+    def __getattr__(self, key):
+        if hasattr(self.decorator, key):
+            return getattr(self.decorator, key)
+        else:
+            return getattr(self.base, key)
+
+    def __setattr__(self, key, value):
+        if hasattr(self.decorator, key):
+            setattr(self.decorator, key, value)
+        else:
+            setattr(self.base, key, value)
+
+    def __hasattr__(self, key):
+        return hasattr(self.decorator, key) or hasattr(self.base, key)
+
+    def __delattr__(self, key):
+        if hasattr(self.decorator, key):
+            delattr(self.decorator, key)
+        else:
+            delattr(self.base, key)
+
+
+def make_class_decorator(decorator_class, base, *args, **kwargs):
+    decorator = decorator_class(base, *args, **kwargs)
+    return MetaDecorator(decorator, base)
+
+
+class DecoratorBase(object):
+
+    def __init__(self, decorated):
+        self._decorated = decorated
+
+    def __getattr__(self, key):
+        return getattr(self._decorated, key)
+
+    def __setattr__(self, key, value):
+        if key.startswith('_'):
+            object.__setattr__(self, key, value)
+        else:
+            setattr(self._decorated, key, value)
+
+    def __hasattr__(key):
+        if key.startswith('_'):
+            return object.__hasattr__(self, key)
+        return hasattr(self._decorated, key)
+
+    def __delattr__(key):
+        if key.startswith('_'):
+            return object.__delattr__(self, key)
+        return delattr(self._decorated, key)

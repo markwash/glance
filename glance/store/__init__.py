@@ -305,44 +305,40 @@ def set_acls(context, location_uri, public=False, read_tenants=[],
         LOG.debug(_("Skipping store.set_acls... not implemented."))
 
 
-class ImageRepoDecorator(object):
+class ImageRepoDecorator(utils.DecoratorBase):
 
     def __init__(self, context, store_api, image_repo):
-        self.context = context
-        self.store_api = store_api
-        self.image_repo = image_repo
+        self._context = context
+        self._store_api = store_api
+        self._image_repo = image_repo
+        super(ImageRepoDecorator, self).__init__(image_repo)
 
     def find(self, *args, **kwargs):
-        image = self.image_repo.find(*args, **kwargs)
-        return ImageDecorator(self.context, self.store_api, image)
+        image = self._image_repo.find(*args, **kwargs)
+        return ImageDecorator(image, self._context, self._store_api)
 
     def find_many(self, *args, **kwargs):
-        images = self.image_repo.find_many(*args, **kwargs)
-        return [ImageDecorator(self.context, self.store_api, i)
+        images = self._image_repo.find_many(*args, **kwargs)
+        return [ImageDecorator(i, self._context, self._store_api)
                 for i in images]
 
-    def __getattr__(self, key):
-        return getattr(self.image_repo, key)
 
+class ImageDecorator(utils.DecoratorBase):
 
-class ImageDecorator(object):
-
-    def __init__(self, context, store_api, image):
-        self.context = context
-        self.store_api = store_api
-        self.image = image
+    def __init__(self, image, context, store_api):
+        self._image = image
+        self._context = context
+        self._store_api = store_api
+        super(ImageDecorator, self).__init__(image)
 
     def delete(self):
-        self.image.delete()
-        if self.image.location:
+        self._image.delete()
+        if self._image.location:
             if CONF.delayed_delete:
-                self.image.status = 'pending_delete'
-                self.store_api.schedule_delayed_delete_from_backend(
-                                self.image.location, self.image.image_id)
+                self._image.status = 'pending_delete'
+                self._store_api.schedule_delayed_delete_from_backend(
+                                self._image.location, self._image.image_id)
             else:
-                self.store_api.safe_delete_from_backend(self.image.location,
-                                                        self.context,
-                                                        self.image.image_id)
-
-    def __getattr__(self, key):
-        return getattr(self.image, key)
+                self._store_api.safe_delete_from_backend(self._image.location,
+                                                        self._context,
+                                                        self._image.image_id)

@@ -131,7 +131,7 @@ class ImageRepo(object):
             'container_format': image.container_format,
             'size': image.size,
             'is_public': image.visibility == 'public',
-            'properties': image.extra_properties,
+            'properties': dict(image.extra_properties),
         }
 
     def add(self, image):
@@ -146,6 +146,8 @@ class ImageRepo(object):
         image_values = self._format_image_to_db(image)
         new_values = self.db_api.image_update(self.context, image.image_id,
                                               image_values, purge_props=True)
+        self.db_api.image_tag_set_all(self.context,
+                                      image.image_id, image.tags)
         image.updated_at = new_values['updated_at']
 
     def remove(self, image):
