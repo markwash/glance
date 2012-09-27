@@ -53,9 +53,10 @@ class ImageBuilder(object):
             raise TypeError(msg % kwargs.keys())
 
     def _check_reserved(self, properties):
-        for key in self._reserved_properties:
-            if key in properties:
-                raise exception.ReservedProperty(property=key)
+        if properties is not None:
+            for key in self._reserved_properties:
+                if key in properties:
+                    raise exception.ReservedProperty(property=key)
 
     def new_image(self, image_id=None, name=None, visibility='private',
                   min_disk=0, min_ram=0, protected=False, owner=None,
@@ -131,7 +132,7 @@ def _proxy(target, attr):
     def del_attr(self):
         return delattr(getattr(self, target), attr)
     return property(get_attr, set_attr, del_attr)
-    
+
 
 class ImageRepoDecorator(object):
     def __init__(self, base):
@@ -151,7 +152,7 @@ class ImageRepoDecorator(object):
 
     def remove(self, image):
         return self.base.remove(image)
-    
+
 
 class ImageDecorator(object):
     def __init__(self, base):

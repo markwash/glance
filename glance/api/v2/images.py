@@ -159,7 +159,7 @@ class ImagesController(object):
         else:
             msg = _("Property %s does not exist.")
             raise webob.exc.HTTPConflict(msg % path)
-            
+
     def _do_add(self, req, image, change):
         path = change['path']
         value = change['value']
