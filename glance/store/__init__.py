@@ -21,6 +21,7 @@ import time
 
 from glance.common import exception
 from glance.common import utils
+import glance.domain
 from glance.openstack.common import cfg
 from glance.openstack.common import importutils
 import glance.openstack.common.log as logging
@@ -305,7 +306,7 @@ def set_acls(context, location_uri, public=False, read_tenants=[],
         LOG.debug(_("Skipping store.set_acls... not implemented."))
 
 
-class ImageRepoDecorator(utils.DecoratorBase):
+class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
 
     def __init__(self, context, store_api, image_repo):
         self._context = context
@@ -323,7 +324,7 @@ class ImageRepoDecorator(utils.DecoratorBase):
                 for i in images]
 
 
-class ImageDecorator(utils.DecoratorBase):
+class ImageDecorator(glance.domain.ImageDecorator):
 
     def __init__(self, image, context, store_api):
         self._image = image

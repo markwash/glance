@@ -157,4 +157,3 @@ class ImageRepo(object):
         # NOTE(markwash): don't update tags?
         new_values = self.db_api.image_destroy(self.context, image.image_id)
         image.updated_at = new_values['updated_at']
-

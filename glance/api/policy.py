@@ -21,6 +21,8 @@ import json
 import os.path
 
 from glance.common import exception
+from glance.common import utils
+import glance.domain
 from glance.openstack.common import cfg
 import glance.openstack.common.log as logging
 from glance.openstack.common import policy
@@ -96,7 +98,7 @@ class Enforcer(object):
            :param context: Glance request context
            :param action: String representing the action to be checked
            :param object: Dictionary representing the object of the action.
-           :raises: `glance.common.exception.Forbidden`
+           :raises: `glance.common.exception.ForbiddenByPolicy`
            :returns: None
         """
         self.load_rules()
@@ -109,4 +111,69 @@ class Enforcer(object):
         }
 
         policy.enforce(match_list, target, credentials,
-                       exception.Forbidden, action=action)
+                       exception.ForbiddenByPolicy, action=action)
+
+
+class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
+
+    def __init__(self, context, policy, image_repo):
+        self._context = context
+        self._policy = policy
+        self._image_repo = image_repo
+        super(ImageRepoDecorator, self).__init__(image_repo)
+
+    def find(self, *args, **kwargs):
+        self._policy.enforce(self._context, 'get_image', {})
+        image = self._image_repo.find(*args, **kwargs)
+        return ImageDecorator(image, self._context, self._policy)
+
+    def find_many(self, *args, **kwargs):
+        self._policy.enforce(self._context, 'get_images', {})
+        images = self._image_repo.find_many(*args, **kwargs)
+        return [ImageDecorator(i, self._context, self._policy)
+                for i in images]
+
+    def save(self, *args, **kwargs):
+        self._policy.enforce(self._context, 'modify_image', {})
+        return self._image_repo.save(*args, **kwargs)
+
+    def add(self, *args, **kwargs):
+        self._policy.enforce(self._context, 'add_image', {})
+        return self._image_repo.add(*args, **kwargs)
+
+
+class ImageDecorator(glance.domain.ImageDecorator):
+
+    def __init__(self, image, context, policy):
+        self._image = image
+        self._context = context
+        self._policy = policy
+        super(ImageDecorator, self).__init__(image)
+
+    @property
+    def visibility(self):
+        return self._image.visibility
+
+    @visibility.setter
+    def visibility(self, value):
+        if value == 'public':
+            self._policy.enforce(self._context, 'publicize_image', {})
+        self._image.visibility = value
+
+    def delete(self):
+        self._policy.enforce(self._context, 'delete_image', {})
+        return self._image.delete()
+
+
+class ImageBuilderDecorator(object):
+
+    def __init__(self, image_builder, context, policy):
+        self.image_builder = image_builder
+        self.context = context
+        self.policy = policy
+
+    def new_image(self, *args, **kwargs):
+        image = self.image_builder.new_image(*args, **kwargs)
+        if image.visibility == 'public':
+            self.policy.enforce(self.context, 'publicize_image', {})
+        return image

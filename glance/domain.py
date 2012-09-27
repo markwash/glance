@@ -33,7 +33,7 @@ class ImageFactoryInterface(object):
     def new_image(self, extra_properties, tags, **kwargs):
         pass
 
-class ImageFactory(object):
+class ImageBuilder(object):
     _readonly_properties = ['created_at', 'updated_at', 'status', 'checksum',
             'size']
     _reserved_properties = ['owner', 'is_public', 'location',
@@ -121,3 +121,60 @@ class Image(object):
         if self.protected:
             raise exception.ProtectedImageDelete(image_id=self.image_id)
         self.status = 'deleted'
+
+
+def _proxy(target, attr):
+    def get_attr(self):
+        return getattr(getattr(self, target), attr)
+    def set_attr(self, value):
+        return setattr(getattr(self, target), attr, value)
+    def del_attr(self):
+        return delattr(getattr(self, target), attr)
+    return property(get_attr, set_attr, del_attr)
+    
+
+class ImageRepoDecorator(object):
+    def __init__(self, base):
+        self.base = base
+
+    def find(self, image_id):
+        return self.base.find(image_id)
+
+    def find_many(self, *args, **kwargs):
+        return self.base.find_many(*args, **kwargs)
+
+    def add(self, image):
+        return self.base.add(image)
+
+    def save(self, image):
+        return self.base.save(image)
+
+    def remove(self, image):
+        return self.base.remove(image)
+    
+
+class ImageDecorator(object):
+    def __init__(self, base):
+        self.base = base
+
+    name = _proxy('base', 'name')
+    image_id = _proxy('base', 'image_id')
+    name = _proxy('base', 'name')
+    status = _proxy('base', 'status')
+    created_at = _proxy('base', 'created_at')
+    updated_at = _proxy('base', 'updated_at')
+    visibility = _proxy('base', 'visibility')
+    min_disk = _proxy('base', 'min_disk')
+    min_ram = _proxy('base', 'min_ram')
+    protected = _proxy('base', 'protected')
+    location = _proxy('base', 'location')
+    checksum = _proxy('base', 'checksum')
+    owner = _proxy('base', 'owner')
+    disk_format = _proxy('base', 'disk_format')
+    container_format = _proxy('base', 'container_format')
+    size = _proxy('base', 'size')
+    extra_properties = _proxy('base', 'extra_properties')
+    tags = _proxy('base', 'tags')
+
+    def delete(self):
+        self.base.delete()
