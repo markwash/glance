@@ -52,7 +52,7 @@ class ImagesController(object):
         self.store_api = store_api or glance.store
         self.store_api.create_stores()
         self.gateway = glance.gateway.Gateway(self.db_api, self.store_api,
-                                              self.policy)
+                                              self.notifier, self.policy)
 
     @utils.mutating
     def create(self, req, image, extra_properties, tags):
@@ -74,7 +74,6 @@ class ImagesController(object):
 
         # these are going to depend on other changes
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
-        self.notifier.info('image.update', image)
         return image
 
     def index(self, req, marker=None, limit=None, sort_key='created_at',
@@ -145,7 +144,6 @@ class ImagesController(object):
                 raise webob.exc.HTTPNotFound()
 
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
-        self.notifier.info('image.update', image)
 
         return image
 
@@ -196,8 +194,6 @@ class ImagesController(object):
             msg = ("Failed to find image %(image_id)s to delete" % locals())
             LOG.info(msg)
             raise webob.exc.HTTPNotFound()
-        else:
-            self.notifier.info('image.delete', image)
 
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):

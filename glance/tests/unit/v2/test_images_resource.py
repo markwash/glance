@@ -352,11 +352,9 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(set([]), output.tags)
         self.assertEqual('private', output.visibility)
         output_log = self.notifier.get_log()
-        expected_log = {'notification_type': "INFO",
-                        'event_type': "image.update",
-                        'payload': output,
-        }
-        self.assertEqual(output_log, expected_log)
+        self.assertEqual(output_log['notification_type'], 'INFO')
+        self.assertEqual(output_log['event_type'], 'image.update')
+        self.assertEqual(output_log['payload']['name'], 'image-1')
 
     def test_create_public_image_as_admin(self):
         request = unit_test_utils.get_fake_request()
@@ -365,11 +363,9 @@ class TestImagesController(test_utils.BaseTestCase):
                                         extra_properties={}, tags=[])
         self.assertEqual('public', output.visibility)
         output_log = self.notifier.get_log()
-        expected_log = {'notification_type': "INFO",
-                        'event_type': "image.update",
-                        'payload': output,
-        }
-        self.assertEqual(output_log, expected_log)
+        self.assertEqual(output_log['notification_type'], 'INFO')
+        self.assertEqual(output_log['event_type'], 'image.update')
+        self.assertEqual(output_log['payload']['id'], output.image_id)
 
     def test_create_duplicate_tags(self):
         request = unit_test_utils.get_fake_request()
@@ -379,11 +375,9 @@ class TestImagesController(test_utils.BaseTestCase):
                                                  tags=tags)
         self.assertEqual(set(['ping']), output.tags)
         output_log = self.notifier.get_log()
-        expected_log = {'notification_type': "INFO",
-                        'event_type': "image.update",
-                        'payload': output,
-         }
-        self.assertEqual(output_log, expected_log)
+        self.assertEqual(output_log['notification_type'], 'INFO')
+        self.assertEqual(output_log['event_type'], 'image.update')
+        self.assertEqual(output_log['payload']['id'], output.image_id)
 
     def test_update_no_changes(self):
         request = unit_test_utils.get_fake_request()
@@ -392,11 +386,10 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(output.created_at, output.updated_at)
         self.assertEqual(output.tags, set(['ping', 'pong']))
         output_log = self.notifier.get_log()
-        expected_log = {'notification_type': "INFO",
-                        'event_type': "image.update",
-                        'payload': output,
-        }
-        self.assertEqual(output_log, expected_log)
+        #NOTE(markwash): don't send a notification if nothing is updated
+        self.assertEqual(output_log['notification_type'], '')
+        self.assertEqual(output_log['event_type'], '')
+        self.assertEqual(output_log['payload'], '')
 
     def test_update_image_doesnt_exist(self):
         request = unit_test_utils.get_fake_request()
@@ -553,11 +546,9 @@ class TestImagesController(test_utils.BaseTestCase):
         output = self.controller.update(request, UUID1, changes)
         self.assertEqual(set(['ping']), output.tags)
         output_log = self.notifier.get_log()
-        expected_log = {'notification_type': "INFO",
-                        'event_type': "image.update",
-                        'payload': output,
-        }
-        self.assertEqual(output_log, expected_log)
+        self.assertEqual(output_log['notification_type'], 'INFO')
+        self.assertEqual(output_log['event_type'], 'image.update')
+        self.assertEqual(output_log['payload']['id'], UUID1)
 
     def test_delete(self):
         request = unit_test_utils.get_fake_request()
