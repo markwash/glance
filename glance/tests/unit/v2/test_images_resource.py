@@ -341,6 +341,12 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertRaises(webob.exc.HTTPNotFound,
                           self.controller.show, request, image_id)
 
+    def test_show_not_allowed(self):
+        request = unit_test_utils.get_fake_request()
+        self.assertEquals(request.context.tenant, TENANT1)
+        self.assertRaises(webob.exc.HTTPNotFound,
+                          self.controller.show, request, UUID4)
+
     def test_create(self):
         request = unit_test_utils.get_fake_request()
         image = {'name': 'image-1'}
@@ -626,6 +632,11 @@ class TestImagesController(test_utils.BaseTestCase):
         request = unit_test_utils.get_fake_request()
         self.assertRaises(webob.exc.HTTPNotFound, self.controller.delete,
                           request, utils.generate_uuid())
+
+    def test_delete_not_allowed(self):
+        request = unit_test_utils.get_fake_request()
+        self.assertRaises(webob.exc.HTTPNotFound, self.controller.delete,
+                          request, UUID4)
 
     def test_index_with_invalid_marker(self):
         fake_uuid = utils.generate_uuid()

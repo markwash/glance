@@ -57,20 +57,13 @@ class ImagesController(object):
     @utils.mutating
     def create(self, req, image, extra_properties, tags):
         image_builder = self.gateway.get_builder(req.context)
+        image_repo = self.gateway.get_repo(req.context)
         try:
             image = image_builder.new_image(extra_properties=extra_properties,
                                             tags=tags, **image)
-        except (exception.ReadonlyProperty,
-                exception.ReservedProperty) as e:
-            raise webob.exc.HTTPForbidden(explanation=unicode(e))
-        except exception.ForbiddenByPolicy:
-            raise webob.exc.HTTPForbidden()
-
-        image_repo = self.gateway.get_repo(req.context)
-        try:
             image_repo.add(image)
-        except exception.ForbiddenByPolicy:
-            raise webob.exc.HTTPForbidden()
+        except exception.Forbidden as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
 
         # these are going to depend on other changes
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
@@ -95,14 +88,11 @@ class ImagesController(object):
                                           filters=filters)
             if len(images) != 0 and len(images) == limit:
                 result['next_marker'] = images[-1].image_id
-        except exception.InvalidFilterRangeValue as e:
+        except (exception.NotFound, exception.InvalidSortKey,
+                exception.InvalidFilterRangeValue) as e:
             raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        except exception.InvalidSortKey as e:
-            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        except exception.NotFound as e:
-            raise webob.exc.HTTPBadRequest(explanation=unicode(e))
-        except exception.ForbiddenByPolicy:
-            raise webob.exc.HTTPForbidden()
+        except exception.Forbidden as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
         result['images'] = images
         return result
 
@@ -110,38 +100,32 @@ class ImagesController(object):
         image_repo = self.gateway.get_repo(req.context)
         try:
             return image_repo.find(image_id)
-        except exception.ForbiddenByPolicy:
-            raise webob.exc.HTTPForbidden()
-        except (exception.NotFound, exception.Forbidden):
-            raise webob.exc.HTTPNotFound()
+        except exception.Forbidden as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
+        except exception.NotFound as e:
+            raise webob.exc.HTTPNotFound(explanation=unicode(e))
 
     @utils.mutating
     def update(self, req, image_id, changes):
-        # TODO not checking 'get_image' here is actually a bug we should file
         image_repo = self.gateway.get_repo(req.context)
         try:
             image = image_repo.find(image_id)
-        except (exception.NotFound, exception.Forbidden):
-            msg = ("Failed to find image %(image_id)s to update" % locals())
+
+            for change in changes:
+                change_method_name = '_do_%s' % change['op']
+                assert hasattr(self, change_method_name)
+                change_method = getattr(self, change_method_name)
+                change_method(req, image, change)
+
+            if len(changes) > 0:
+                    image_repo.save(image)
+
+        except exception.NotFound:
+            msg = _("Failed to find image %(image_id)s to update" % locals())
             LOG.info(msg)
             raise webob.exc.HTTPNotFound(explanation=msg)
-
-        for change in changes:
-            change_method_name = '_do_%s' % change['op']
-            assert hasattr(self, change_method_name)
-            change_method = getattr(self, change_method_name)
-            try:
-                change_method(req, image, change)
-            except exception.ForbiddenByPolicy:
-                raise webob.exc.HTTPForbidden()
-
-        if len(changes) > 0:
-            try:
-                image_repo.save(image)
-            except exception.ForbiddenByPolicy:
-                raise webob.exc.HTTPForbidden()
-            except (exception.NotFound, exception.Forbidden):
-                raise webob.exc.HTTPNotFound()
+        except exception.Forbidden as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
 
         #v2.update_image_read_acl(req, self.store_api, self.db_api, image)
 
@@ -184,17 +168,12 @@ class ImagesController(object):
             image = image_repo.find(image_id)
             image.delete()
             image_repo.remove(image)
-        except exception.ProtectedImageDelete:
-            msg = _("Unable to delete as image %(image_id)s is protected"
-                    % {'image_id': image.image_id})
-            raise webob.exc.HTTPForbidden(explanation=msg)
-        except exception.ForbiddenByPolicy:
-            raise webob.exc.HTTPForbidden()
-        except (exception.NotFound, exception.Forbidden):
+        except exception.Forbidden as e:
+            raise webob.exc.HTTPForbidden(explanation=unicode(e))
+        except exception.NotFound as e:
             msg = ("Failed to find image %(image_id)s to delete" % locals())
             LOG.info(msg)
             raise webob.exc.HTTPNotFound()
-
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
 

@@ -17,6 +17,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from glance.common import exception
 import glance.domain
 from glance.openstack.common import cfg
 from glance.openstack.common import importutils
@@ -66,7 +67,10 @@ class ImageRepo(object):
         self.db_api = db_api
 
     def find(self, image_id):
-        db_api_image = dict(self.db_api.image_get(self.context, image_id))
+        try:
+            db_api_image = dict(self.db_api.image_get(self.context, image_id))
+        except (exception.NotFound, exception.Forbidden):
+            raise exception.NotFound(image_id=image_id)
         tags = self.db_api.image_tag_get_all(self.context, image_id)
         image = self._format_image_from_db(db_api_image, tags)
         return image
@@ -144,16 +148,24 @@ class ImageRepo(object):
 
     def save(self, image):
         image_values = self._format_image_to_db(image)
-        new_values = self.db_api.image_update(self.context, image.image_id,
-                                              image_values, purge_props=True)
+        try:
+            new_values = self.db_api.image_update(self.context,
+                                                  image.image_id,
+                                                  image_values,
+                                                  purge_props=True)
+        except (exception.NotFound, exception.Forbidden):
+            raise exception.NotFound(image_id=image.image_id)
         self.db_api.image_tag_set_all(self.context,
                                       image.image_id, image.tags)
         image.updated_at = new_values['updated_at']
 
     def remove(self, image):
         image_values = self._format_image_to_db(image)
-        self.db_api.image_update(self.context, image.image_id,
-                                 image_values, purge_props=True)
+        try:
+            self.db_api.image_update(self.context, image.image_id,
+                                     image_values, purge_props=True)
+        except (exception.NotFound, exception.Forbidden):
+            raise exception.NotFound(image_id=image.image_id)
         # NOTE(markwash): don't update tags?
         new_values = self.db_api.image_destroy(self.context, image.image_id)
         image.updated_at = new_values['updated_at']
