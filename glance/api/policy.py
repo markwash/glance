@@ -98,7 +98,7 @@ class Enforcer(object):
            :param context: Glance request context
            :param action: String representing the action to be checked
            :param object: Dictionary representing the object of the action.
-           :raises: `glance.common.exception.ForbiddenByPolicy`
+           :raises: `glance.common.exception.Forbidden`
            :returns: None
         """
         self.load_rules()
@@ -111,7 +111,7 @@ class Enforcer(object):
         }
 
         policy.enforce(match_list, target, credentials,
-                       exception.ForbiddenByPolicy, action=action)
+                       exception.Forbidden, action=action)
 
 
 class ImageRepoProxy(glance.domain.ImageRepoProxy):
@@ -172,8 +172,16 @@ class ImageFactoryProxy(object):
         self.context = context
         self.policy = policy
 
-    def new_image(self, *args, **kwargs):
-        image = self.image_factory.new_image(*args, **kwargs)
-        if image.visibility == 'public':
+    def new_image(self, image_id=None, name=None, visibility='private',
+                  min_disk=0, min_ram=0, protected=False, owner=None,
+                 disk_format=None, container_format=None,
+                 extra_properties=None, tags=None, **other_args):
+        if visibility == 'public':
             self.policy.enforce(self.context, 'publicize_image', {})
+        image = self.image_factory.new_image(image_id=image_id, name=name,
+                    visibility=visibility, min_disk=min_disk, min_ram=min_ram,
+                    protected=protected, owner=owner, disk_format=disk_format,
+                    container_format=container_format,
+                    extra_properties=extra_properties, tags=tags,
+                    **other_args)
         return image
