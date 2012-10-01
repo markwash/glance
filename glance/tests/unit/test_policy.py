@@ -208,7 +208,7 @@ class TestImagePolicy(test_utils.BaseTestCase):
         image_repo.add()
 
     def test_new_image_visibility(self):
-        rules = {'publicized_image': False}
+        rules = {'publicize_image': False}
         self.policy.set_rules(rules)
 
         image_factory = glance.api.policy.ImageFactoryProxy(self.image_factory_stub,
@@ -217,7 +217,7 @@ class TestImagePolicy(test_utils.BaseTestCase):
                           visibility='public')
     
     def test_new_image_visibility_public_allowed(self):
-        rules = {'publicized_image': True}
+        rules = {'publicize_image': True}
         self.policy.set_rules(rules)
         image_factory = glance.api.policy.ImageFactoryProxy(self.image_factory_stub,
                                                             {}, self.policy)
