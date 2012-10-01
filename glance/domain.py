@@ -132,7 +132,7 @@ def _proxy(target, attr):
     def del_attr(self):
         return delattr(getattr(self, target), attr)
     return property(get_attr, set_attr, del_attr)
-    
+
 
 class ImageRepoDecorator(object):
     def __init__(self, base):
@@ -152,7 +152,7 @@ class ImageRepoDecorator(object):
 
     def remove(self, image):
         return self.base.remove(image)
-    
+
 
 class ImageDecorator(object):
     def __init__(self, base):
