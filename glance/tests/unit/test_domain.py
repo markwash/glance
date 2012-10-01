@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from glance.common import exception
+
 from glance import domain
 
 import glance.tests.unit.utils as unit_test_utils
@@ -20,6 +22,8 @@ import glance.tests.utils as test_utils
 
 
 UUID1 = 'c80a1a6c-bd1f-41c5-90ee-81afedb1d58d'
+
+TENANT1 = '6838eb7b-6ded-434a-882c-b344c77fe8df'
 
 
 class TestImageBuilder(test_utils.BaseTestCase):
@@ -124,5 +128,22 @@ class TestImageBuilder(test_utils.BaseTestCase):
         request = unit_test_utils.get_fake_request()
         self.image_builder = domain.ImageBuilder(request.context)
 
-        self.asserRaises(request, exception.ReadonlyProperty, self.image_builder.new_image(image_id=UUID1,
-                         name='image-1', size=256)
+        self.assertRaises(exception.ReadonlyProperty,
+                        self.image_builder.new_image, image_id=UUID1,
+                        name='image-1', size=256)
+
+    def test_new_image_unexpected_property(self):
+        request = unit_test_utils.get_fake_request()
+        self.image_builder = domain.ImageBuilder(request.context)
+
+        self.assertRaises(TypeError,
+                        self.image_builder.new_image, image_id=UUID1,
+                        image_name='name-1')
+
+    def test_new_image_reserved_property(self):
+        request = unit_test_utils.get_fake_request()
+        self.image_builder = domain.ImageBuilder(request.context)
+        extra_properties = {'deleted': True}
+        self.assertRaises(exception.ReservedProperty,
+                        self.image_builder.new_image, image_id=UUID1,
+                        extra_properties=extra_properties)

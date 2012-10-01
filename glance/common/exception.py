@@ -133,11 +133,11 @@ class InvalidFilterRangeValue(Invalid):
     message = _("Unable to filter using the specified range.")
 
 
-class ReadonlyProperty(Invalid):
+class ReadonlyProperty(Forbidden):
     message = _("Attribute \'%(property)s\' is read-only.")
 
 
-class ReservedProperty(Invalid):
+class ReservedProperty(Forbidden):
     message = _("Attribute \'%(property)s\' is reserved.")
 
 
