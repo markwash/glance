@@ -306,31 +306,31 @@ def set_acls(context, location_uri, public=False, read_tenants=[],
         LOG.debug(_("Skipping store.set_acls... not implemented."))
 
 
-class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
+class ImageRepoProxy(glance.domain.ImageRepoProxy):
 
     def __init__(self, context, store_api, image_repo):
         self._context = context
         self._store_api = store_api
         self._image_repo = image_repo
-        super(ImageRepoDecorator, self).__init__(image_repo)
+        super(ImageRepoProxy, self).__init__(image_repo)
 
-    def find(self, *args, **kwargs):
-        image = self._image_repo.find(*args, **kwargs)
-        return ImageDecorator(image, self._context, self._store_api)
+    def get(self, *args, **kwargs):
+        image = self._image_repo.get(*args, **kwargs)
+        return ImageProxy(image, self._context, self._store_api)
 
-    def find_many(self, *args, **kwargs):
-        images = self._image_repo.find_many(*args, **kwargs)
-        return [ImageDecorator(i, self._context, self._store_api)
+    def list(self, *args, **kwargs):
+        images = self._image_repo.list(*args, **kwargs)
+        return [ImageProxy(i, self._context, self._store_api)
                 for i in images]
 
 
-class ImageDecorator(glance.domain.ImageDecorator):
+class ImageProxy(glance.domain.ImageProxy):
 
     def __init__(self, image, context, store_api):
         self._image = image
         self._context = context
         self._store_api = store_api
-        super(ImageDecorator, self).__init__(image)
+        super(ImageProxy, self).__init__(image)
 
     def delete(self):
         self._image.delete()

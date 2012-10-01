@@ -2,38 +2,8 @@ import glance.common.utils
 from glance.common import exception
 from glance.openstack.common import timeutils
 
-#CONF = cfg.CONF
 
-#class AuthDomain(object):
-#
-#    def __init__(self, db_api=None):
-#        self.db_api = db_api or glance.db.get_api()
-#        self.db_api.configure_db()
-#
-#    def get_image_repo(self, context):
-#        return ImageRepo(context, self.db_api)
-#
-class ImageRepoInterface(object):
-
-    def find(self, image_id):
-        pass
-
-    def find_many(self, marker, limit, filters):
-        pass
-
-    def save(self, image):
-        pass
-
-    def remove(self, image_id):
-        pass
-
-
-class ImageFactoryInterface(object):
-
-    def new_image(self, extra_properties, tags, **kwargs):
-        pass
-
-class ImageBuilder(object):
+class ImageFactory(object):
     _readonly_properties = ['created_at', 'updated_at', 'status', 'checksum',
             'size']
     _reserved_properties = ['owner', 'is_public', 'location',
@@ -81,6 +51,7 @@ class ImageBuilder(object):
                      container_format=container_format,
                      extra_properties=extra_properties, tags=tags)
 
+
 class Image(object):
 
     def __init__(self, image_id, status, created_at, updated_at, name=None,
@@ -125,24 +96,28 @@ class Image(object):
 
 
 def _proxy(target, attr):
+
     def get_attr(self):
         return getattr(getattr(self, target), attr)
+
     def set_attr(self, value):
         return setattr(getattr(self, target), attr, value)
+
     def del_attr(self):
         return delattr(getattr(self, target), attr)
+
     return property(get_attr, set_attr, del_attr)
 
 
-class ImageRepoDecorator(object):
+class ImageRepoProxy(object):
     def __init__(self, base):
         self.base = base
 
-    def find(self, image_id):
-        return self.base.find(image_id)
+    def get(self, image_id):
+        return self.base.get(image_id)
 
-    def find_many(self, *args, **kwargs):
-        return self.base.find_many(*args, **kwargs)
+    def list(self, *args, **kwargs):
+        return self.base.list(*args, **kwargs)
 
     def add(self, image):
         return self.base.add(image)
@@ -154,7 +129,7 @@ class ImageRepoDecorator(object):
         return self.base.remove(image)
 
 
-class ImageDecorator(object):
+class ImageProxy(object):
     def __init__(self, base):
         self.base = base
 

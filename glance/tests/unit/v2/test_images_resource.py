@@ -111,10 +111,12 @@ class TestImagesController(test_utils.BaseTestCase):
     def _create_images(self):
         self.db.reset()
         self.images = [
-            _db_fixture(UUID1, owner=TENANT1, name='1', size=256, is_public=True,
-                     location='%s/%s' % (BASE_URI, UUID1)),
-            _db_fixture(UUID2, owner=TENANT1, name='2', size=512, is_public=True),
-            _db_fixture(UUID3, owner=TENANT3, name='3', size=512, is_public=True),
+            _db_fixture(UUID1, owner=TENANT1, name='1', size=256,
+                        is_public=True, location='%s/%s' % (BASE_URI, UUID1)),
+            _db_fixture(UUID2, owner=TENANT1, name='2',
+                        size=512, is_public=True),
+            _db_fixture(UUID3, owner=TENANT3, name='3',
+                        size=512, is_public=True),
             _db_fixture(UUID4, owner=TENANT4, name='4', size=1024),
         ]
         [self.db.image_create(None, image) for image in self.images]
@@ -219,7 +221,8 @@ class TestImagesController(test_utils.BaseTestCase):
         self.assertEqual(0, len(images))
 
     def test_index_with_non_default_is_public_filter(self):
-        image = _db_fixture(utils.generate_uuid(), is_public=False, owner=TENANT3)
+        image_id = utils.generate_uuid()
+        image = _db_fixture(image_id, is_public=False, owner=TENANT3)
         self.db.image_create(None, image)
         path = '/images?visibility=private'
         request = unit_test_utils.get_fake_request(path)
@@ -1253,11 +1256,12 @@ class TestImagesSerializer(test_utils.BaseTestCase):
         self.serializer = glance.api.v2.images.ResponseSerializer()
         self.fixtures = [
             #NOTE(bcwaldon): This first fixture has every property defined
-            _domain_fixture(UUID1, name='image-1', size=1024, tags=['one', 'two'],
-                     created_at=DATETIME, updated_at=DATETIME, owner=TENANT1,
-                     visibility='public', container_format='ami',
-                     disk_format='ami', min_ram=128, min_disk=10,
-                     checksum='ca425b88f047ce8ec45ee90e813ada91'),
+            _domain_fixture(UUID1, name='image-1', size=1024,
+                            created_at=DATETIME, updated_at=DATETIME,
+                            owner=TENANT1, visibility='public',
+                            container_format='ami', tags=['one', 'two'],
+                            disk_format='ami', min_ram=128, min_disk=10,
+                            checksum='ca425b88f047ce8ec45ee90e813ada91'),
 
             #NOTE(bcwaldon): This second fixture depends on default behavior
             # and sets most values to None
@@ -1729,12 +1733,13 @@ class TestImagesSerializerDirectUrl(test_utils.BaseTestCase):
         super(TestImagesSerializerDirectUrl, self).setUp()
         self.serializer = glance.api.v2.images.ResponseSerializer()
 
-        self.active_image = _domain_fixture(UUID1, name='image-1',
-                visibility='public', status='active', size=1024,
-                created_at=DATETIME, updated_at=DATETIME,
-                location='http://some/fake/location')
+        self.active_image = _domain_fixture(
+                UUID1, name='image-1', visibility='public',
+                status='active', size=1024, created_at=DATETIME,
+                updated_at=DATETIME, location='http://some/fake/location')
 
-        self.queued_image = _domain_fixture(UUID2, name='image-2', status='active',
+        self.queued_image = _domain_fixture(
+                UUID2, name='image-2', status='active',
                 created_at=DATETIME, updated_at=DATETIME,
                 checksum='ca425b88f047ce8ec45ee90e813ada91')
 

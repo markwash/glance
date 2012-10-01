@@ -88,12 +88,12 @@ class Notifier(object):
         self.strategy.error(msg)
 
 
-class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
+class ImageRepoProxy(glance.domain.ImageRepoProxy):
 
     def __init__(self, image_repo, notifier):
         self.image_repo = image_repo
         self.notifier = notifier
-        super(ImageRepoDecorator, self).__init__(image_repo)
+        super(ImageRepoProxy, self).__init__(image_repo)
 
     def _format_image(self, image):
         return {

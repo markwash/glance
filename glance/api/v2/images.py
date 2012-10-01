@@ -56,10 +56,10 @@ class ImagesController(object):
 
     @utils.mutating
     def create(self, req, image, extra_properties, tags):
-        image_builder = self.gateway.get_builder(req.context)
+        image_factory = self.gateway.get_image_factory(req.context)
         image_repo = self.gateway.get_repo(req.context)
         try:
-            image = image_builder.new_image(extra_properties=extra_properties,
+            image = image_factory.new_image(extra_properties=extra_properties,
                                             tags=tags, **image)
             image_repo.add(image)
         except exception.Forbidden as e:
@@ -83,8 +83,8 @@ class ImagesController(object):
 
         image_repo = self.gateway.get_repo(req.context)
         try:
-            images = image_repo.find_many(marker=marker, limit=limit,
-                                          sort_key=sort_key, sort_dir=sort_dir,
+            images = image_repo.list(marker=marker, limit=limit,
+                                     sort_key=sort_key, sort_dir=sort_dir,
                                           filters=filters)
             if len(images) != 0 and len(images) == limit:
                 result['next_marker'] = images[-1].image_id
@@ -99,7 +99,7 @@ class ImagesController(object):
     def show(self, req, image_id):
         image_repo = self.gateway.get_repo(req.context)
         try:
-            return image_repo.find(image_id)
+            return image_repo.get(image_id)
         except exception.Forbidden as e:
             raise webob.exc.HTTPForbidden(explanation=unicode(e))
         except exception.NotFound as e:
@@ -109,7 +109,7 @@ class ImagesController(object):
     def update(self, req, image_id, changes):
         image_repo = self.gateway.get_repo(req.context)
         try:
-            image = image_repo.find(image_id)
+            image = image_repo.get(image_id)
 
             for change in changes:
                 change_method_name = '_do_%s' % change['op']
@@ -165,7 +165,7 @@ class ImagesController(object):
     def delete(self, req, image_id):
         image_repo = self.gateway.get_repo(req.context)
         try:
-            image = image_repo.find(image_id)
+            image = image_repo.get(image_id)
             image.delete()
             image_repo.remove(image)
         except exception.Forbidden as e:
@@ -174,6 +174,7 @@ class ImagesController(object):
             msg = ("Failed to find image %(image_id)s to delete" % locals())
             LOG.info(msg)
             raise webob.exc.HTTPNotFound()
+
 
 class RequestDeserializer(wsgi.JSONRequestDeserializer):
 
@@ -389,15 +390,14 @@ class ResponseSerializer(wsgi.JSONResponseSerializer):
         image_view['id'] = image.image_id
         image_view['created_at'] = timeutils.isotime(image.created_at)
         image_view['updated_at'] = timeutils.isotime(image.updated_at)
-        if CONF.show_image_direct_url and image.location is not None: # domain
+        if CONF.show_image_direct_url and image.location is not None:  # domain
             image_view['direct_url'] = image.location
         image_view['tags'] = list(image.tags)
         image_view['self'] = self._get_image_href(image)
         image_view['file'] = self._get_image_href(image, 'file')
         image_view['schema'] = '/v2/schemas/image'
-        image_view = self.schema.filter(image_view) # domain
+        image_view = self.schema.filter(image_view)  # domain
         return image_view
-
 
     def create(self, response, image):
         response.status_int = 201

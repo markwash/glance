@@ -114,23 +114,23 @@ class Enforcer(object):
                        exception.ForbiddenByPolicy, action=action)
 
 
-class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
+class ImageRepoProxy(glance.domain.ImageRepoProxy):
 
     def __init__(self, context, policy, image_repo):
         self._context = context
         self._policy = policy
         self._image_repo = image_repo
-        super(ImageRepoDecorator, self).__init__(image_repo)
+        super(ImageRepoProxy, self).__init__(image_repo)
 
-    def find(self, *args, **kwargs):
+    def get(self, *args, **kwargs):
         self._policy.enforce(self._context, 'get_image', {})
-        image = self._image_repo.find(*args, **kwargs)
-        return ImageDecorator(image, self._context, self._policy)
+        image = self._image_repo.get(*args, **kwargs)
+        return ImageProxy(image, self._context, self._policy)
 
-    def find_many(self, *args, **kwargs):
+    def list(self, *args, **kwargs):
         self._policy.enforce(self._context, 'get_images', {})
-        images = self._image_repo.find_many(*args, **kwargs)
-        return [ImageDecorator(i, self._context, self._policy)
+        images = self._image_repo.list(*args, **kwargs)
+        return [ImageProxy(i, self._context, self._policy)
                 for i in images]
 
     def save(self, *args, **kwargs):
@@ -142,13 +142,13 @@ class ImageRepoDecorator(glance.domain.ImageRepoDecorator):
         return self._image_repo.add(*args, **kwargs)
 
 
-class ImageDecorator(glance.domain.ImageDecorator):
+class ImageProxy(glance.domain.ImageProxy):
 
     def __init__(self, image, context, policy):
         self._image = image
         self._context = context
         self._policy = policy
-        super(ImageDecorator, self).__init__(image)
+        super(ImageProxy, self).__init__(image)
 
     @property
     def visibility(self):
@@ -165,15 +165,15 @@ class ImageDecorator(glance.domain.ImageDecorator):
         return self._image.delete()
 
 
-class ImageBuilderDecorator(object):
+class ImageFactoryProxy(object):
 
-    def __init__(self, image_builder, context, policy):
-        self.image_builder = image_builder
+    def __init__(self, image_factory, context, policy):
+        self.image_factory = image_factory
         self.context = context
         self.policy = policy
 
     def new_image(self, *args, **kwargs):
-        image = self.image_builder.new_image(*args, **kwargs)
+        image = self.image_factory.new_image(*args, **kwargs)
         if image.visibility == 'public':
             self.policy.enforce(self.context, 'publicize_image', {})
         return image

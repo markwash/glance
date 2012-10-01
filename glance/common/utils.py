@@ -412,7 +412,7 @@ def mutating(func):
 class ClassDecoratorHelper(object):
     def __init__(self, decorator, base):
         object.__setattr__(self, 'decorator', decorator)
-        object.__setattr__(self, 'base', base) 
+        object.__setattr__(self, 'base', base)
 
     def __getattr__(self, key):
         if hasattr(self.decorator, key):
