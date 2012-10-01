@@ -90,10 +90,7 @@ class ImageRepo(object):
         return images
 
     def _format_image_from_db(self, db_image, db_tags):
-        if db_image['is_public']:
-            visibility = 'public'
-        else:
-            visibility = 'private'
+        visibility = 'public' if db_image['is_public'] else 'private'
         properties = {}
         for prop in db_image.pop('properties'):
             # db api requires us to filter deleted
@@ -155,8 +152,8 @@ class ImageRepo(object):
                                                   purge_props=True)
         except (exception.NotFound, exception.Forbidden):
             raise exception.NotFound(image_id=image.image_id)
-        self.db_api.image_tag_set_all(self.context,
-                                      image.image_id, image.tags)
+        self.db_api.image_tag_set_all(self.context, image.image_id,
+                                      image.tags)
         image.updated_at = new_values['updated_at']
 
     def remove(self, image):
