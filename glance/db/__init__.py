@@ -75,8 +75,8 @@ class ImageRepo(object):
         image = self._format_image_from_db(db_api_image, tags)
         return image
 
-    def list(self, marker=None, limit=None, sort_key=None,
-             sort_dir=None, filters=None):
+    def list(self, marker=None, limit=None, sort_key='created_at',
+             sort_dir='desc', filters=None):
         db_api_images = \
                 self.db_api.image_get_all(self.context, filters=filters,
                                           marker=marker, limit=limit,
@@ -84,6 +84,7 @@ class ImageRepo(object):
                                           sort_dir=sort_dir)
         images = []
         for db_api_image in db_api_images:
+            print db_api_image['name']
             tags = self.db_api.image_tag_get_all(self.context,
                                                  db_api_image['id'])
             image = self._format_image_from_db(dict(db_api_image), tags)
