@@ -431,13 +431,12 @@ class TestImageNotifications(utils.BaseTestCase):
     """Test Image Notifications work"""
 
     def setUp(self):
-        self.image_stub = glance.domain.Image(image_id=UUID1, name='image-1',
-                            status='active', size=1024,
-                            created_at=DATETIME, updated_at=DATETIME,
-                            owner=TENANT1, visibility='public',
-                            container_format='ami', tags=['one', 'two'],
-                            disk_format='ami', min_ram=128, min_disk=10,
-                            checksum='ca425b88f047ce8ec45ee90e813ada91')
+        self.image = glance.domain.Image(
+                image_id=UUID1, name='image-1', status='active', size=1024,
+                created_at=DATETIME, updated_at=DATETIME, owner=TENANT1,
+                visibility='public', container_format='ami',
+                tags=['one', 'two'], disk_format='ami', min_ram=128,
+                min_disk=10, checksum='ca425b88f047ce8ec45ee90e813ada91')
         self.image_repo_stub = ImageRepoStub()
         self.notifier = unit_test_utils.FakeNotifier()
         self.image_repo_proxy = glance.notifier.ImageRepoProxy(self.image_repo_stub,
@@ -445,23 +444,23 @@ class TestImageNotifications(utils.BaseTestCase):
         super(TestImageNotifications, self).setUp()
 
     def test_image_save_notification(self):
-        self.image_repo_proxy.save(self.image_stub)
+        self.image_repo_proxy.save(self.image)
         output_log = self.notifier.get_log()
         self.assertEqual(output_log['notification_type'], 'INFO')
         self.assertEqual(output_log['event_type'], 'image.update')
-        self.assertEqual(output_log['payload']['id'], self.image_stub.image_id)
+        self.assertEqual(output_log['payload']['id'], self.image.image_id)
 
     def test_image_add_notification(self):
-        self.image_repo_proxy.add(self.image_stub)
+        self.image_repo_proxy.add(self.image)
         output_log = self.notifier.get_log()
         self.assertEqual(output_log['notification_type'], 'INFO')
         self.assertEqual(output_log['event_type'], 'image.update')
-        self.assertEqual(output_log['payload']['id'], self.image_stub.image_id)
+        self.assertEqual(output_log['payload']['id'], self.image.image_id)
 
     def test_image_delete_notification(self):
-        self.image_repo_proxy.remove(self.image_stub)
+        self.image_repo_proxy.remove(self.image)
         output_log = self.notifier.get_log()
         self.assertEqual(output_log['notification_type'], 'INFO')
         self.assertEqual(output_log['event_type'], 'image.delete')
-        self.assertEqual(output_log['payload']['id'], self.image_stub.image_id)
+        self.assertEqual(output_log['payload']['id'], self.image.image_id)
         self.assertTrue(output_log['payload']['deleted'])
