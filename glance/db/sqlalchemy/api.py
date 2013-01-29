@@ -273,6 +273,7 @@ def image_get(context, image_id, session=None, force_show_deleted=False):
     try:
         query = session.query(models.Image)\
                        .options(sa_orm.joinedload(models.Image.properties))\
+                       .options(sa_orm.joinedload(models.Image.locations))\
                        .filter_by(id=image_id)
 
         # filter out deleted images if context disallows it
@@ -288,7 +289,7 @@ def image_get(context, image_id, session=None, force_show_deleted=False):
     if not is_image_visible(context, image):
         raise exception.Forbidden("Image not visible to you")
 
-    return image
+    return _image_location_fix(image)
 
 
 def is_image_mutable(context, image):
@@ -484,7 +485,8 @@ def image_get_all(context, filters=None, marker=None, limit=None,
 
     session = get_session()
     query = session.query(models.Image)\
-                   .options(sa_orm.joinedload(models.Image.properties))
+                   .options(sa_orm.joinedload(models.Image.properties))\
+                   .options(sa_orm.joinedload(models.Image.locations))
 
     # NOTE(markwash) treat is_public=None as if it weren't filtered
     if 'is_public' in filters and filters['is_public'] is None:
@@ -553,8 +555,7 @@ def image_get_all(context, filters=None, marker=None, limit=None,
                            [sort_key, 'created_at', 'id'],
                            marker=marker_image,
                            sort_dir=sort_dir)
-
-    return query.all()
+    return [_image_location_fix(i) for i in query.all()]
 
 
 def _drop_protected_attrs(model_class, values):
@@ -613,6 +614,12 @@ def _image_update(context, values, image_id, purge_props=False):
         # not a dict.
         properties = values.pop('properties', {})
 
+        try:
+            location = values.pop('location')
+            location_provided = True
+        except KeyError:
+            location_provided = False
+
         if image_id:
             image_ref = image_get(context, image_id, session=session)
 
@@ -660,7 +667,33 @@ def _image_update(context, values, image_id, purge_props=False):
         _set_properties_for_image(context, image_ref, properties, purge_props,
                                   session)
 
+    if location_provided:
+        _image_location_set(image_ref.id, location, session)
+
     return image_get(context, image_ref.id)
+
+
+def _image_location_fix(image):
+    #NOTE(bcwaldon): mock this out until we support multiple images above
+    # the sqlalchemy db layer
+    if len(image.locations) > 0:
+        image.location = image.locations[0].value
+    else:
+        image.location = None
+    return image
+
+
+def _image_location_set(image_id, location, session):
+    locations = session.query(models.ImageLocation)\
+                       .filter_by(image_id=image_id)\
+                       .filter_by(deleted=False)\
+                       .all()
+    for location_ref in locations:
+        location_ref.delete(session=session)
+
+    if location is not None:
+        location_ref = models.ImageLocation(image_id=image_id, value=location)
+        location_ref.save()
 
 
 def _set_properties_for_image(context, image_ref, properties,
