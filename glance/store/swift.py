@@ -309,41 +309,57 @@ class BaseStore(glance.store.base.Store):
                     total_chunks = '?'
 
                 checksum = hashlib.md5()
+                orphaned_chunks = []
                 combined_chunks_size = 0
-                while True:
-                    chunk_size = self.large_object_chunk_size
-                    if image_size == 0:
-                        content_length = None
-                    else:
-                        left = image_size - combined_chunks_size
-                        if left == 0:
+                try:
+                    while True:
+                        chunk_size = self.large_object_chunk_size
+                        if image_size == 0:
+                            content_length = None
+                        else:
+                            left = image_size - combined_chunks_size
+                            if left == 0:
+                                break
+                            if chunk_size > left:
+                                chunk_size = left
+                            content_length = chunk_size
+
+                        chunk_name = "%s-%05d" % (location.obj, chunk_id)
+                        reader = ChunkReader(image_file, checksum, chunk_size)
+                        chunk_etag = connection.put_object(
+                            location.container, chunk_name, reader,
+                            content_length=content_length)
+                        orphaned_chunks.append(chunk_name)
+                        bytes_read = reader.bytes_read
+                        msg = _("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
+                                "%(total_chunks)s) of length %(bytes_read)d "
+                                "to Swift returning MD5 of content: "
+                                "%(chunk_etag)s")
+                        LOG.debug(msg % locals())
+
+                        if bytes_read == 0:
+                            # Delete the last chunk, because it's of zero size.
+                            # This will happen if size == 0.
+                            LOG.debug(_("Deleting final zero-length chunk"))
+                            connection.delete_object(location.container,
+                                                     chunk_name)
                             break
-                        if chunk_size > left:
-                            chunk_size = left
-                        content_length = chunk_size
 
-                    chunk_name = "%s-%05d" % (location.obj, chunk_id)
-                    reader = ChunkReader(image_file, checksum, chunk_size)
-                    chunk_etag = connection.put_object(
-                        location.container, chunk_name, reader,
-                        content_length=content_length)
-                    bytes_read = reader.bytes_read
-                    msg = _("Wrote chunk %(chunk_name)s (%(chunk_id)d/"
-                            "%(total_chunks)s) of length %(bytes_read)d "
-                            "to Swift returning MD5 of content: "
-                            "%(chunk_etag)s")
-                    LOG.debug(msg % locals())
+                        chunk_id += 1
+                        combined_chunks_size += bytes_read
 
-                    if bytes_read == 0:
-                        # Delete the last chunk, because it's of zero size.
-                        # This will happen if size == 0.
-                        LOG.debug(_("Deleting final zero-length chunk"))
-                        connection.delete_object(location.container,
-                                                 chunk_name)
-                        break
+                    # upload succeeded, no chunks are orphans
+                    orphaned_chunks = []
 
-                    chunk_id += 1
-                    combined_chunks_size += bytes_read
+                finally:
+                    # Delete any orphaned chunks from swift backend
+                    for chunk in orphaned_chunks:
+                        LOG.debug(_("Deleting orphaned chunk %s" % chunk))
+                        try:
+                            connection.delete_object(location.container,
+                                                     chunk)
+                        except Exception as delete_exc:
+                            LOG.exception(delete_exc)
 
                 # In the case we have been given an unknown image size,
                 # set the size to the total size of the combined chunks.
