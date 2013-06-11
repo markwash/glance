@@ -57,6 +57,8 @@ class Query(object):
     def delete(self):
         """
         Remove all images that match this query from the underlying repository
+
+        :returns how many images were deleted
         """
         pass
 
@@ -65,6 +67,7 @@ class Query(object):
         Update all images that match this query with the given values.
 
         :param image_update: a dictionary of updates
+        :returns how many images were updated
         """
         pass
 
