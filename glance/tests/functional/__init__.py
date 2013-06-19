@@ -300,6 +300,7 @@ class ApiServer(Server):
         self.delayed_delete = delayed_delete
         self.owner_is_tenant = True
         self.workers = 0
+        self.eventlet_hub = 'selects'
         self.scrub_time = 5
         self.image_cache_dir = os.path.join(self.test_dir,
                                             'cache')
@@ -347,6 +348,7 @@ rbd_store_ceph_conf = %(rbd_store_ceph_conf)s
 delayed_delete = %(delayed_delete)s
 owner_is_tenant = %(owner_is_tenant)s
 workers = %(workers)s
+eventlet_hub = %(eventlet_hub)s
 scrub_time = %(scrub_time)s
 scrubber_datadir = %(scrubber_datadir)s
 image_cache_dir = %(image_cache_dir)s
@@ -443,6 +445,7 @@ class RegistryServer(Server):
         self.log_file = os.path.join(self.test_dir, "registry.log")
         self.owner_is_tenant = True
         self.workers = 0
+        self.eventlet_hub = 'selects'
         self.conf_base = """[DEFAULT]
 verbose = %(verbose)s
 debug = %(debug)s
@@ -456,6 +459,7 @@ api_limit_max = 1000
 limit_param_default = 25
 owner_is_tenant = %(owner_is_tenant)s
 workers = %(workers)s
+eventlet_hub = %(eventlet_hub)s
 [paste_deploy]
 flavor = %(deployment_flavor)s
 """

@@ -43,12 +43,17 @@ class TestMultiprocessing(functional.FunctionalTest):
         self.stop_servers()
 
     def _get_children(self):
-        api_pid = self.api_server.process_pid
-        cmd = ("ps --no-headers --ppid %s -o pid,cmd | "
-               "grep python | "  # NOTE(markwash): ignore non-python procs
-               "awk '{print $1; print >> \"/dev/stderr\"}'" % api_pid)
-        _, out, err = execute(cmd, raise_error=True)
-        return out.strip().split('\n')
+        api_pid = str(self.api_server.process_pid)
+        cmd = ("ps ax -o pid,ppid,command")
+        out = execute(cmd, raise_error=True)[1]
+        child_procs = []
+        for line in out.split('\n')[1:]:
+            if not line.strip():
+                continue
+            pid, ppid, command = line.split(None, 2)
+            if ppid == api_pid and 'python' in command:
+                child_procs.append(pid)
+        return child_procs
 
     def test_interrupt_avoids_respawn_storm(self):
         """
@@ -59,6 +64,8 @@ class TestMultiprocessing(functional.FunctionalTest):
         self.start_servers(**self.__dict__.copy())
 
         children = self._get_children()
+        # NOTE(markwash): sanity check
+        self.assertEqual(len(children), self.workers)
         cmd = "kill -INT %s" % ' '.join(children)
         execute(cmd, raise_error=True)
 
