@@ -591,7 +591,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise exception.StorageFull('Modern Major General')
 
-        self.assertRaises(webob.exc.HTTPRequestEntityTooLarge,
+        self.assertRaises(exception.StorageFull,
                           self.image_proxy.set_data, data_iterator(), 10)
         output_logs = self.notifier.get_logs()
         self.assertEqual(len(output_logs), 1)
@@ -607,7 +607,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise ValueError('value wrong')
 
-        self.assertRaises(webob.exc.HTTPBadRequest,
+        self.assertRaises(ValueError,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
@@ -624,7 +624,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise exception.Duplicate('Cant have duplicates')
 
-        self.assertRaises(webob.exc.HTTPConflict,
+        self.assertRaises(exception.Duplicate,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
@@ -641,7 +641,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise exception.StorageWriteDenied('The Very Model')
 
-        self.assertRaises(webob.exc.HTTPServiceUnavailable,
+        self.assertRaises(exception.StorageWriteDenied,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
@@ -658,7 +658,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise exception.Forbidden('Not allowed')
 
-        self.assertRaises(webob.exc.HTTPForbidden,
+        self.assertRaises(exception.Forbidden,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
@@ -675,7 +675,7 @@ class TestImageNotifications(utils.BaseTestCase):
             yield 'abcde'
             raise exception.NotFound('Not found')
 
-        self.assertRaises(webob.exc.HTTPNotFound,
+        self.assertRaises(exception.NotFound,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
@@ -704,12 +704,15 @@ class TestImageNotifications(utils.BaseTestCase):
         self.assertTrue('Http issue' in output_log['payload'])
 
     def test_image_set_data_error(self):
+        class OtherException(Exception):
+            pass
+
         def data_iterator():
             self.notifier.log = []
             yield 'abcde'
-            raise Exception('Failed')
+            raise OtherException('Failed')
 
-        self.assertRaises(Exception,
+        self.assertRaises(OtherException,
                           self.image_proxy.set_data, data_iterator(), 10)
 
         output_logs = self.notifier.get_logs()
